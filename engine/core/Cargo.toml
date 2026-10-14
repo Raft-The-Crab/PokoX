@@ -7,3 +7,4 @@ license.workspace = true
 
 [dependencies]
 poko-ids-handles = { path = "../ids-handles" }
+poko-object-model = { path = "../object-model" }
