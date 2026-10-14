@@ -209,6 +209,47 @@ let stats = registry.get_stats();
 assert_eq!(stats.total_objects, 0);
 ```
 
+### Metadata
+
+```rust
+// Set metadata on an object
+registry.set_metadata(model.data.id, "author".to_string(), "John".to_string()).unwrap();
+registry.set_metadata(model.data.id, "version".to_string(), "1.0".to_string()).unwrap();
+
+// Get metadata
+let author = registry.get_metadata(model.data.id, "author").unwrap();
+assert_eq!(author, Some("John".to_string()));
+
+// Get all metadata
+let all_metadata = registry.get_all_metadata(model.data.id).unwrap();
+println!("Metadata: {:?}", all_metadata);
+
+// Remove metadata
+registry.remove_metadata(model.data.id, "author").unwrap();
+```
+
+### Clone Operations
+
+```rust
+// Clone a single object (creates new ID)
+let cloned_id = registry.clone_object(model.data.id, Some("ClonedModel".to_string())).unwrap();
+
+// Clone an object with its entire subtree
+let cloned_subtree_id = registry.clone_subtree(model.data.id, Some("ClonedModel".to_string())).unwrap();
+// This clones the model and all its parts recursively
+```
+
+### Snapshot and Restore
+
+```rust
+// Create a snapshot of the current registry state
+let snapshot = registry.snapshot();
+
+// Restore from a snapshot (clears current state first)
+let mut new_registry = ObjectRegistry::new();
+new_registry.restore(&snapshot).unwrap();
+```
+
 ## Error Handling
 
 The object model uses `ObjectModelError` for all operations:

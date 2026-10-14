@@ -76,6 +76,8 @@ pub struct ObjectData {
     pub name: String,
     /// Whether the object is marked for destruction
     pub destroyed: bool,
+    /// Custom metadata key-value pairs
+    pub metadata: HashMap<String, String>,
 }
 
 impl ObjectData {
@@ -88,6 +90,7 @@ impl ObjectData {
             children: Vec::new(),
             name,
             destroyed: false,
+            metadata: HashMap::new(),
         }
     }
 
@@ -187,6 +190,7 @@ pub struct SerializableObject {
     pub children: Vec<Id>,
     pub name: String,
     pub destroyed: bool,
+    pub metadata: HashMap<String, String>,
 }
 
 impl From<Object> for SerializableObject {
@@ -199,6 +203,7 @@ impl From<Object> for SerializableObject {
             children: data.children.clone(),
             name: data.name.clone(),
             destroyed: data.destroyed,
+            metadata: data.metadata.clone(),
         }
     }
 }
@@ -770,6 +775,7 @@ impl ObjectRegistry {
                 children: Vec::new(), // Will populate in second pass
                 name: serial_obj.name.clone(),
                 destroyed: serial_obj.destroyed,
+                metadata: serial_obj.metadata.clone(),
             };
 
             match serial_obj.object_type {
@@ -941,6 +947,168 @@ impl ObjectRegistry {
     /// Get object count by type
     pub fn count_by_type(&self, object_type: ObjectType) -> usize {
         self.find_by_type(object_type).len()
+    }
+
+    /// Set metadata for an object
+    pub fn set_metadata(
+        &mut self,
+        id: Id,
+        key: String,
+        value: String,
+    ) -> Result<(), ObjectModelError> {
+        let handle = self
+            .id_to_handle
+            .get(&id)
+            .ok_or(ObjectModelError::ObjectNotFound(id))?
+            .clone();
+
+        if let Some(obj) = self.objects.get_mut(handle).ok() {
+            obj.data_mut().metadata.insert(key, value);
+        }
+
+        Ok(())
+    }
+
+    /// Get metadata for an object
+    pub fn get_metadata(&self, id: Id, key: &str) -> Result<Option<String>, ObjectModelError> {
+        let handle = self
+            .id_to_handle
+            .get(&id)
+            .ok_or(ObjectModelError::ObjectNotFound(id))?;
+
+        let obj = self.objects.get(*handle)?;
+        Ok(obj.data().metadata.get(key).cloned())
+    }
+
+    /// Remove metadata from an object
+    pub fn remove_metadata(
+        &mut self,
+        id: Id,
+        key: &str,
+    ) -> Result<Option<String>, ObjectModelError> {
+        let handle = self
+            .id_to_handle
+            .get(&id)
+            .ok_or(ObjectModelError::ObjectNotFound(id))?
+            .clone();
+
+        if let Some(obj) = self.objects.get_mut(handle).ok() {
+            Ok(obj.data_mut().metadata.remove(key))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get all metadata for an object
+    pub fn get_all_metadata(&self, id: Id) -> Result<HashMap<String, String>, ObjectModelError> {
+        let handle = self
+            .id_to_handle
+            .get(&id)
+            .ok_or(ObjectModelError::ObjectNotFound(id))?;
+
+        let obj = self.objects.get(*handle)?;
+        Ok(obj.data().metadata.clone())
+    }
+
+    /// Clone an object (creates a new object with same properties but new ID)
+    pub fn clone_object(
+        &mut self,
+        id: Id,
+        new_name: Option<String>,
+    ) -> Result<Id, ObjectModelError> {
+        let obj = self.get_object(id)?;
+        let data = obj.data();
+
+        let new_id = match obj.object_type() {
+            ObjectType::Workspace => {
+                let workspace = self.create_workspace(
+                    new_name.unwrap_or_else(|| format!("{} (Copy)", data.name)),
+                )?;
+                workspace.data.id
+            }
+            ObjectType::Model => {
+                if let Some(parent_id) = data.parent {
+                    let model = self.create_model(
+                        parent_id,
+                        new_name.unwrap_or_else(|| format!("{} (Copy)", data.name)),
+                    )?;
+                    model.data.id
+                } else {
+                    return Err(ObjectModelError::InvalidOperation(
+                        "Cannot clone model without parent".to_string(),
+                    ));
+                }
+            }
+            ObjectType::Part => {
+                if let Some(parent_id) = data.parent {
+                    let part = self.create_part(
+                        parent_id,
+                        new_name.unwrap_or_else(|| format!("{} (Copy)", data.name)),
+                    )?;
+                    part.data.id
+                } else {
+                    return Err(ObjectModelError::InvalidOperation(
+                        "Cannot clone part without parent".to_string(),
+                    ));
+                }
+            }
+        };
+
+        // Copy metadata
+        for (key, value) in &data.metadata {
+            self.set_metadata(new_id, key.clone(), value.clone())?;
+        }
+
+        Ok(new_id)
+    }
+
+    /// Clone an object with its descendants
+    pub fn clone_subtree(
+        &mut self,
+        id: Id,
+        new_name: Option<String>,
+    ) -> Result<Id, ObjectModelError> {
+        let mut old_to_new_id: HashMap<Id, Id> = HashMap::new();
+
+        // First pass: clone all objects in the subtree
+        let mut to_clone = vec![id];
+        while let Some(current_id) = to_clone.pop() {
+            let obj = self.get_object(current_id)?;
+            let data = obj.data();
+
+            let new_id = self.clone_object(current_id, new_name.clone())?;
+            old_to_new_id.insert(current_id, new_id);
+
+            // Add children to clone queue
+            for child_id in &data.children {
+                to_clone.push(*child_id);
+            }
+        }
+
+        // Second pass: re-establish parent-child relationships among cloned objects
+        for (old_id, new_id) in &old_to_new_id {
+            let old_obj = self.get_object(*old_id)?;
+            let old_data = old_obj.data();
+
+            if let Some(old_parent_id) = old_data.parent {
+                if let Some(new_parent_id) = old_to_new_id.get(&old_parent_id) {
+                    self.reparent(*new_id, Some(*new_parent_id))?;
+                }
+            }
+        }
+
+        Ok(*old_to_new_id.get(&id).unwrap())
+    }
+
+    /// Create a snapshot of the current registry state
+    pub fn snapshot(&self) -> String {
+        self.serialize_hierarchy().unwrap()
+    }
+
+    /// Restore from a snapshot
+    pub fn restore(&mut self, snapshot: &str) -> Result<(), ObjectModelError> {
+        self.clear();
+        self.deserialize_hierarchy(snapshot)
     }
 }
 
@@ -1464,5 +1632,147 @@ mod tests {
         assert_eq!(registry.count_by_type(ObjectType::Workspace), 1);
         assert_eq!(registry.count_by_type(ObjectType::Model), 1);
         assert_eq!(registry.count_by_type(ObjectType::Part), 1);
+    }
+
+    #[test]
+    fn test_metadata_operations() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+
+        // Set metadata
+        registry
+            .set_metadata(workspace.data.id, "author".to_string(), "test".to_string())
+            .unwrap();
+        registry
+            .set_metadata(workspace.data.id, "version".to_string(), "1.0".to_string())
+            .unwrap();
+
+        // Get metadata
+        let author = registry.get_metadata(workspace.data.id, "author").unwrap();
+        assert_eq!(author, Some("test".to_string()));
+
+        let version = registry.get_metadata(workspace.data.id, "version").unwrap();
+        assert_eq!(version, Some("1.0".to_string()));
+
+        // Get non-existent metadata
+        let missing = registry.get_metadata(workspace.data.id, "missing").unwrap();
+        assert!(missing.is_none());
+
+        // Get all metadata
+        let all = registry.get_all_metadata(workspace.data.id).unwrap();
+        assert_eq!(all.len(), 2);
+
+        // Remove metadata
+        let removed = registry
+            .remove_metadata(workspace.data.id, "author")
+            .unwrap();
+        assert_eq!(removed, Some("test".to_string()));
+
+        let after_remove = registry.get_metadata(workspace.data.id, "author").unwrap();
+        assert!(after_remove.is_none());
+    }
+
+    #[test]
+    fn test_clone_object() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+
+        // Add metadata to original
+        registry
+            .set_metadata(model.data.id, "tag".to_string(), "original".to_string())
+            .unwrap();
+
+        // Clone the model
+        let cloned_id = registry
+            .clone_object(model.data.id, Some("ClonedModel".to_string()))
+            .unwrap();
+
+        // Verify clone exists and has different ID
+        assert!(registry.exists(cloned_id));
+        assert_ne!(cloned_id, model.data.id);
+
+        // Verify clone has metadata
+        let tag = registry.get_metadata(cloned_id, "tag").unwrap();
+        assert_eq!(tag, Some("original".to_string()));
+
+        // Verify clone name
+        let cloned_obj = registry.get_object(cloned_id).unwrap();
+        assert_eq!(cloned_obj.data().name, "ClonedModel");
+    }
+
+    #[test]
+    fn test_clone_subtree() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let part1 = registry
+            .create_part(model.data.id, "Part1".to_string())
+            .unwrap();
+        let part2 = registry
+            .create_part(model.data.id, "Part2".to_string())
+            .unwrap();
+
+        // Clone the model subtree
+        let cloned_model_id = registry
+            .clone_subtree(model.data.id, Some("ClonedModel".to_string()))
+            .unwrap();
+
+        // Verify clone exists
+        assert!(registry.exists(cloned_model_id));
+        assert_ne!(cloned_model_id, model.data.id);
+
+        // Verify cloned parts exist
+        let cloned_model = registry.get_object(cloned_model_id).unwrap();
+        assert_eq!(cloned_model.data().children.len(), 2);
+
+        // Verify original parts still exist
+        assert!(registry.exists(part1.data.id));
+        assert!(registry.exists(part2.data.id));
+    }
+
+    #[test]
+    fn test_snapshot_restore() {
+        let mut registry1 = ObjectRegistry::new();
+        let workspace = registry1
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry1
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+
+        // Add metadata
+        registry1
+            .set_metadata(model.data.id, "tag".to_string(), "snapshot".to_string())
+            .unwrap();
+
+        // Create snapshot
+        let snapshot = registry1.snapshot();
+        assert!(!snapshot.is_empty());
+
+        // Create new registry and restore
+        let mut registry2 = ObjectRegistry::new();
+        registry2.restore(&snapshot).unwrap();
+
+        // Verify restored state
+        let restored_workspace = registry2.get_object(workspace.data.id).unwrap();
+        assert_eq!(restored_workspace.data().name, "TestWorkspace");
+
+        let restored_model = registry2.get_object(model.data.id).unwrap();
+        assert_eq!(restored_model.data().name, "TestModel");
+
+        // Verify metadata was restored
+        let tag = registry2.get_metadata(model.data.id, "tag").unwrap();
+        assert_eq!(tag, Some("snapshot".to_string()));
     }
 }
