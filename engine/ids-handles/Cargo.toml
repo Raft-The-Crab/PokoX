@@ -12,3 +12,12 @@ thiserror = "1.0"
 
 [dev-dependencies]
 serde_json = "1.0"
+criterion = "0.5"
+
+[[bench]]
+name = "registry"
+harness = false
+
+[[bench]]
+name = "id_serialization"
+harness = false

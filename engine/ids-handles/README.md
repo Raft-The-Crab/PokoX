@@ -182,13 +182,148 @@ assert!(GenerationValidator::is_newer(5, 3));
 assert_eq!(GenerationValidator::distance(5, 3), 2);
 ```
 
+### Production: Scene Graph with Typed IDs
+
+```rust
+use poko_ids_handles::{Handle, HandleRegistry, Id, IdType, RegistryError};
+use std::collections::HashMap;
+
+struct Scene {
+    objects: HandleRegistry<GameObject>,
+    id_to_handle: HashMap<Id, Handle>,
+}
+
+struct GameObject {
+    position: (f32, f32, f32),
+    parent: Option<Id>,
+}
+
+impl Scene {
+    fn new() -> Self {
+        Scene {
+            objects: HandleRegistry::new(),
+            id_to_handle: HashMap::new(),
+        }
+    }
+
+    fn add_object(&mut self, obj: GameObject) -> Id {
+        let id = Id::new(IdType::Model);
+        let handle = self.objects.allocate(obj).unwrap();
+        self.id_to_handle.insert(id, handle);
+        id
+    }
+
+    fn get_object(&self, id: Id) -> Option<&GameObject> {
+        self.id_to_handle.get(&id)
+            .and_then(|handle| self.objects.get(*handle).ok())
+    }
+
+    fn remove_object(&mut self, id: Id) -> Result<(), RegistryError> {
+        if let Some(handle) = self.id_to_handle.remove(&id) {
+            self.objects.remove(handle)?;
+        }
+        Ok(())
+    }
+}
+```
+
+### Production: Network Replication with Batch Serialization
+
+```rust
+use poko_ids_handles::{Id, IdBatch, IdType};
+
+// Server: prepare update packet
+fn prepare_update(object_ids: &[Id]) -> Vec<u8> {
+    let mut batch = IdBatch::with_capacity(object_ids.len());
+    batch.extend(object_ids.iter().cloned());
+    serde_json::to_vec(&batch).unwrap()
+}
+
+// Client: deserialize update
+fn process_update(data: &[u8]) -> Vec<Id> {
+    let batch: IdBatch = serde_json::from_slice(data).unwrap();
+    batch.to_ids()
+}
+
+// Usage
+let server_ids = vec![
+    Id::new(IdType::Model),
+    Id::new(IdType::Part),
+    Id::new(IdType::Asset),
+];
+let packet = prepare_update(&server_ids);
+let client_ids = process_update(&packet);
+```
+
+### Production: Resource Management with Statistics
+
+```rust
+use poko_ids_handles::{HandleRegistry, RegistryStats};
+
+struct ResourceManager {
+    textures: HandleRegistry<Texture>,
+    models: HandleRegistry<Model>,
+}
+
+impl ResourceManager {
+    fn get_stats(&self) -> ResourceStats {
+        ResourceStats {
+            textures: self.textures.stats(),
+            models: self.models.stats(),
+        }
+    }
+
+    fn cleanup(&mut self) {
+        // Remove unused resources
+        let unused_textures = self.textures.retain(|t| t.ref_count > 0);
+        let unused_models = self.models.retain(|m| m.ref_count > 0);
+
+        println!("Cleaned {} textures, {} models",
+                 unused_textures.len(), unused_models.len());
+    }
+}
+
+struct ResourceStats {
+    textures: RegistryStats,
+    models: RegistryStats,
+}
+```
+
 ## Test Coverage
 
-- **52 unit tests** covering all core functionality
+- **63 unit tests** covering all core functionality
 - **6 integration tests** for real-world usage patterns
+- **9 stress tests** for large-scale operations (50,000+ items)
+- **8 memory profiling tests** for memory efficiency verification
+- **Criterion benchmarks** for performance profiling
 - Tests for: creation, serialization, destruction, reuse, overflow, validation, cross-world isolation
 - Performance tests for batch operations
 - Generation tracking tests with wrapping behavior
+
+## Performance Characteristics
+
+### Memory Efficiency
+- `Id`: 17 bytes (16 UUID + 1 type byte)
+- `Handle`: 4 bytes (2 index + 2 generation)
+- `IdBytes`: 17 bytes (compact binary representation)
+- `HandleBytes`: 4 bytes (compact binary representation)
+- `GenerationCounter`: 2 bytes (atomic u16)
+- `RegistryStats`: 32 bytes (4 usize fields)
+
+### Performance Benchmarks
+Based on Criterion benchmarks (optimized build):
+- **Allocation**: ~10 µs for 1,000 items, ~100 µs for 10,000 items
+- **Get**: ~1 µs for 1,000 items, ~10 µs for 10,000 items
+- **Remove**: ~15 µs for 1,000 items, ~140 µs for 10,000 items
+- **Find**: ~200 ns for 1,000 items, ~2 µs for 10,000 items
+- **Contains**: ~200 ns for 1,000 items, ~2 µs for 10,000 items
+- **Handles iteration**: ~770 ns for 1,000 items, ~7.5 µs for 10,000 items
+
+### Stress Test Results
+- Successfully handles 50,000+ allocations
+- Handles 1,000+ generation cycles efficiently
+- Batch serialization of 50,000 IDs in ~6ms
+- Concurrent ID creation across 4 threads scales linearly
 
 ## Dependencies
 

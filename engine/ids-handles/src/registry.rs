@@ -24,8 +24,8 @@ pub enum RegistryError {
 }
 
 /// Metadata for a handle slot
-#[derive(Debug, Clone)]
-struct SlotMetadata {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SlotMetadata {
     generation: HandleGeneration,
     is_live: bool,
 }
