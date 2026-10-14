@@ -31,7 +31,10 @@ fn test_id_and_handle_combination() {
     assert_eq!(registry.get(handle2).unwrap().data, "Object 2");
 
     // Verify IDs are preserved
-    assert_ne!(registry.get(handle1).unwrap().id, registry.get(handle2).unwrap().id);
+    assert_ne!(
+        registry.get(handle1).unwrap().id,
+        registry.get(handle2).unwrap().id
+    );
 }
 
 #[test]
@@ -62,7 +65,11 @@ fn test_id_type_categorization() {
     let h_part = registry.allocate(part).unwrap();
 
     // Verify types are preserved
-    assert!(registry.get(h_workspace).unwrap().id.is_type(IdType::Workspace));
+    assert!(registry
+        .get(h_workspace)
+        .unwrap()
+        .id
+        .is_type(IdType::Workspace));
     assert!(registry.get(h_model).unwrap().id.is_type(IdType::Model));
     assert!(registry.get(h_part).unwrap().id.is_type(IdType::Part));
 }

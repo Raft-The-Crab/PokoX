@@ -2,9 +2,9 @@
 //!
 //! Run with: cargo test --test concurrent -- --nocapture
 
+use poko_ids_handles::{GenerationCounter, Id, IdType};
 use std::sync::{Arc, Barrier};
 use std::thread;
-use poko_ids_handles::{GenerationCounter, Id, IdType};
 
 #[test]
 fn test_generation_counter_concurrent() {
@@ -35,8 +35,12 @@ fn test_generation_counter_concurrent() {
     let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
     let _total_increments: u32 = results.iter().map(|&v| v as u32).sum();
 
-    println!("Concurrent increments: {} threads × {} = {} total",
-             num_threads, increments_per_thread, num_threads * increments_per_thread);
+    println!(
+        "Concurrent increments: {} threads × {} = {} total",
+        num_threads,
+        increments_per_thread,
+        num_threads * increments_per_thread
+    );
     println!("Final counter value: {}", counter.get());
 
     // Verify all threads completed
@@ -45,8 +49,8 @@ fn test_generation_counter_concurrent() {
 
 #[test]
 fn test_id_generation_concurrent() {
-    use std::sync::Mutex;
     use std::collections::HashSet;
+    use std::sync::Mutex;
 
     let ids = Arc::new(Mutex::new(HashSet::new()));
     let num_threads = 8;
@@ -81,7 +85,11 @@ fn test_id_generation_concurrent() {
     }
 
     let ids = ids.lock().unwrap();
-    println!("Generated {} unique IDs from {} threads", ids.len(), num_threads);
+    println!(
+        "Generated {} unique IDs from {} threads",
+        ids.len(),
+        num_threads
+    );
 
     // Verify all IDs are unique
     assert_eq!(ids.len(), num_threads * ids_per_thread);
@@ -121,8 +129,10 @@ fn test_multiple_registries_concurrent() {
 
     println!("Concurrent registry operations:");
     for (i, (count, duration, stats)) in results.iter().enumerate() {
-        println!("  Thread {}: {} items in {:?} (live={}, free={})",
-                 i, count, duration, stats.live_count, stats.free_count);
+        println!(
+            "  Thread {}: {} items in {:?} (live={}, free={})",
+            i, count, duration, stats.live_count, stats.free_count
+        );
     }
 
     // Verify all threads completed successfully
@@ -167,7 +177,10 @@ fn test_generation_pool_concurrent() {
     let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
     let total: usize = results.iter().sum();
 
-    println!("Concurrent pool operations: {} total generations retrieved", total);
+    println!(
+        "Concurrent pool operations: {} total generations retrieved",
+        total
+    );
     assert_eq!(total, num_threads * items_per_thread);
 }
 
@@ -207,7 +220,10 @@ fn test_id_serialization_concurrent() {
     }
 
     let serialized = serialized.lock().unwrap();
-    println!("Concurrent serialization: {} IDs serialized", serialized.len());
+    println!(
+        "Concurrent serialization: {} IDs serialized",
+        serialized.len()
+    );
 
     // Verify all IDs can be deserialized
     for s in serialized.iter() {

@@ -10,5 +10,5 @@ pub use poko_ids_handles::{
 
 pub use poko_object_model::{
     LifecycleEvent, Model, Object, ObjectData, ObjectModelError, ObjectRegistry, ObjectType, Part,
-    Workspace,
+    RegistryStatistics, Workspace,
 };

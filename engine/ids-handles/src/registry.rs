@@ -209,7 +209,10 @@ impl<T> HandleRegistry<T> {
             f(value);
             Ok(())
         } else {
-            Err(self.validate_handle(handle).err().unwrap_or(RegistryError::NotLive))
+            Err(self
+                .validate_handle(handle)
+                .err()
+                .unwrap_or(RegistryError::NotLive))
         }
     }
 
@@ -217,7 +220,10 @@ impl<T> HandleRegistry<T> {
     pub fn replace(&mut self, handle: Handle, new_value: T) -> Result<T, RegistryError> {
         self.validate_handle(handle)?;
         let index = handle.index() as usize;
-        Ok(std::mem::replace(self.slots[index].as_mut().unwrap(), new_value))
+        Ok(std::mem::replace(
+            self.slots[index].as_mut().unwrap(),
+            new_value,
+        ))
     }
 
     /// Check if the registry contains a specific value by predicate
@@ -316,7 +322,10 @@ impl<T> HandleRegistry<T> {
         let index = handle.index() as usize;
 
         if index >= self.slots.len() {
-            return Err(RegistryError::InvalidIndex(handle.index(), self.slots.len()));
+            return Err(RegistryError::InvalidIndex(
+                handle.index(),
+                self.slots.len(),
+            ));
         }
 
         let metadata = &self.metadata[index];
@@ -689,9 +698,7 @@ mod tests {
         let start = std::time::Instant::now();
 
         // Allocate 1000 objects
-        let handles: Vec<_> = (0..1000)
-            .map(|_| registry.allocate(42).unwrap())
-            .collect();
+        let handles: Vec<_> = (0..1000).map(|_| registry.allocate(42).unwrap()).collect();
 
         let alloc_time = start.elapsed();
         println!("Allocation of 1000 objects: {:?}", alloc_time);

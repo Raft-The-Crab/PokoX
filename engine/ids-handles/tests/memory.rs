@@ -21,10 +21,17 @@ fn test_registry_memory_efficiency() {
     let registry_size = mem::size_of_val(&registry);
     let per_item = registry_size / count;
 
-    println!("Registry with {} items: {} bytes total, {} bytes per item", count, registry_size, per_item);
+    println!(
+        "Registry with {} items: {} bytes total, {} bytes per item",
+        count, registry_size, per_item
+    );
 
     // Each item should be reasonable (less than 1KB per item)
-    assert!(per_item < 1024, "Per-item memory cost too high: {} bytes", per_item);
+    assert!(
+        per_item < 1024,
+        "Per-item memory cost too high: {} bytes",
+        per_item
+    );
 }
 
 #[test]
@@ -43,7 +50,10 @@ fn test_id_memory_size() {
     let vec_size = mem::size_of_val(&ids);
     let per_item = vec_size / count;
 
-    println!("Vec of {} IDs: {} bytes total, {} bytes per item", count, vec_size, per_item);
+    println!(
+        "Vec of {} IDs: {} bytes total, {} bytes per item",
+        count, vec_size, per_item
+    );
 }
 
 #[test]
@@ -75,7 +85,10 @@ fn test_batch_serialization_memory() {
     // Batch should be more memory-efficient than Vec<Id>
     // Expected: 17 bytes per ID in batch (16 UUID + 1 type)
     let expected_bytes = count * 17;
-    assert!(batch_size < expected_bytes * 2, "Batch memory cost too high");
+    assert!(
+        batch_size < expected_bytes * 2,
+        "Batch memory cost too high"
+    );
 }
 
 #[test]
@@ -86,7 +99,11 @@ fn test_registry_stats_size() {
     println!("RegistryStats size: {} bytes", stats_size);
 
     // Should be small (4 usize fields)
-    assert!(stats_size <= 32, "RegistryStats too large: {} bytes", stats_size);
+    assert!(
+        stats_size <= 32,
+        "RegistryStats too large: {} bytes",
+        stats_size
+    );
 }
 
 #[test]
@@ -97,7 +114,11 @@ fn test_generation_counter_size() {
     println!("GenerationCounter size: {} bytes", counter_size);
 
     // Should be small (atomic u16)
-    assert!(counter_size <= 8, "GenerationCounter too large: {} bytes", counter_size);
+    assert!(
+        counter_size <= 8,
+        "GenerationCounter too large: {} bytes",
+        counter_size
+    );
 }
 
 #[test]
@@ -121,4 +142,3 @@ fn test_handle_bytes_size() {
     // Should be exactly 4 bytes (2 index + 2 generation)
     assert_eq!(bytes_size, 4, "HandleBytes should be exactly 4 bytes");
 }
-

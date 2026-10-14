@@ -2,7 +2,7 @@
 //!
 //! Run with: cargo bench --bench registry
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use poko_ids_handles::HandleRegistry;
 
 fn bench_allocate(c: &mut Criterion) {
@@ -25,9 +25,7 @@ fn bench_get(c: &mut Criterion) {
     for size in [100, 1_000, 10_000, 50_000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
             let mut registry: HandleRegistry<u32> = HandleRegistry::new();
-            let handles: Vec<_> = (0..size)
-                .map(|_| registry.allocate(42).unwrap())
-                .collect();
+            let handles: Vec<_> = (0..size).map(|_| registry.allocate(42).unwrap()).collect();
 
             b.iter(|| {
                 for handle in &handles {
@@ -45,9 +43,7 @@ fn bench_remove(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
             b.iter(|| {
                 let mut registry: HandleRegistry<u32> = HandleRegistry::new();
-                let handles: Vec<_> = (0..size)
-                    .map(|_| registry.allocate(42).unwrap())
-                    .collect();
+                let handles: Vec<_> = (0..size).map(|_| registry.allocate(42).unwrap()).collect();
 
                 for handle in handles {
                     black_box(registry.remove(handle).unwrap());

@@ -152,6 +152,63 @@ let restored_workspace = registry2.get_object(workspace.data.id).unwrap();
 assert_eq!(restored_workspace.data().name, "MyWorkspace");
 ```
 
+### Query and Statistics
+
+```rust
+// Get registry statistics
+let stats = registry.get_stats();
+println!("Total objects: {}", stats.total_objects);
+println!("Workspaces: {}", stats.workspaces);
+println!("Models: {}", stats.models);
+println!("Parts: {}", stats.parts);
+println!("Max depth: {}", stats.max_depth);
+
+// Find objects by name
+let results = registry.find_by_name("MyModel");
+println!("Found {} objects named 'MyModel'", results.len());
+
+// Find objects by type
+let models = registry.find_by_type(ObjectType::Model);
+println!("Found {} models", models.len());
+
+// Get all workspaces
+let workspaces = registry.get_workspaces();
+println!("Found {} workspaces", workspaces.len());
+
+// Check if an object exists
+if registry.exists(workspace.data.id) {
+    println!("Workspace exists");
+}
+
+// Count objects by type
+let model_count = registry.count_by_type(ObjectType::Model);
+println!("Model count: {}", model_count);
+```
+
+### Batch Operations
+
+```rust
+// Batch create models
+let names = vec!["Model1".to_string(), "Model2".to_string(), "Model3".to_string()];
+let models = registry.create_models_batch(workspace.data.id, names).unwrap();
+println!("Created {} models", models.len());
+
+// Batch create parts
+let part_names = vec!["Part1".to_string(), "Part2".to_string()];
+let parts = registry.create_parts_batch(model.data.id, part_names).unwrap();
+println!("Created {} parts", parts.len());
+```
+
+### Clear Registry
+
+```rust
+// Clear all objects from the registry
+registry.clear();
+
+let stats = registry.get_stats();
+assert_eq!(stats.total_objects, 0);
+```
+
 ## Error Handling
 
 The object model uses `ObjectModelError` for all operations:

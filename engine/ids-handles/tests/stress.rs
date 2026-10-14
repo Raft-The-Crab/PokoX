@@ -31,9 +31,7 @@ fn test_large_scale_destruction_reuse() {
     let count: usize = 10_000;
 
     // Allocate
-    let handles: Vec<_> = (0..count)
-        .map(|_| registry.allocate(42).unwrap())
-        .collect();
+    let handles: Vec<_> = (0..count).map(|_| registry.allocate(42).unwrap()).collect();
 
     // Remove every other
     let start = std::time::Instant::now();
@@ -84,9 +82,7 @@ fn test_id_batch_serialization_stress() {
     use poko_ids_handles::IdBatch;
 
     let count: usize = 50_000;
-    let ids: Vec<_> = (0..count)
-        .map(|_| Id::new(IdType::Model))
-        .collect();
+    let ids: Vec<_> = (0..count).map(|_| Id::new(IdType::Model)).collect();
 
     let start = std::time::Instant::now();
     let mut batch = IdBatch::with_capacity(count);
@@ -111,16 +107,17 @@ fn test_registry_capacity_stress() {
     let count: usize = 50_000;
 
     // Allocate up to high count
-    let handles: Vec<_> = (0..count)
-        .map(|_| registry.allocate(42).unwrap())
-        .collect();
+    let handles: Vec<_> = (0..count).map(|_| registry.allocate(42).unwrap()).collect();
 
     println!("Successfully allocated {} handles", handles.len());
     assert_eq!(registry.len(), count);
 
     // Check stats
     let stats = registry.stats();
-    println!("Registry stats: total_slots={}, live_count={}", stats.total_slots, stats.live_count);
+    println!(
+        "Registry stats: total_slots={}, live_count={}",
+        stats.total_slots, stats.live_count
+    );
 }
 
 #[test]
@@ -154,7 +151,12 @@ fn test_retain_stress() {
     let removed = registry.retain(|&v| v % 2 == 0);
     let duration = start.elapsed();
 
-    println!("Retained {} values, removed {} in {:?}", count / 2, removed.len(), duration);
+    println!(
+        "Retained {} values, removed {} in {:?}",
+        count / 2,
+        removed.len(),
+        duration
+    );
     assert_eq!(removed.len(), count / 2);
     assert_eq!(registry.len(), count / 2);
 }
@@ -178,7 +180,10 @@ fn test_stats_tracking_stress() {
     }
 
     let stats = registry.stats();
-    println!("Stats after removal: live={}, free={}", stats.live_count, stats.free_count);
+    println!(
+        "Stats after removal: live={}, free={}",
+        stats.live_count, stats.free_count
+    );
     assert!(stats.free_count > 0);
 }
 
@@ -214,7 +219,12 @@ fn test_concurrent_ids_creation() {
     let duration = start.elapsed();
     let ids = ids.lock().unwrap();
 
-    println!("Created {} IDs in {} threads in {:?}", ids.len(), threads, duration);
+    println!(
+        "Created {} IDs in {} threads in {:?}",
+        ids.len(),
+        threads,
+        duration
+    );
     assert_eq!(ids.len(), count * threads);
 
     // Verify all IDs are unique

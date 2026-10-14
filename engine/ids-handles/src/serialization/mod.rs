@@ -15,7 +15,9 @@ pub struct IdBytes {
 impl IdBytes {
     /// Create IdBytes from an Id
     pub fn from_id(id: Id) -> Self {
-        Self { bytes: id.to_bytes() }
+        Self {
+            bytes: id.to_bytes(),
+        }
     }
 
     /// Convert back to Id
@@ -188,7 +190,10 @@ impl HandleBatch {
 
     /// Convert to a vector of Handles
     pub fn to_handles(&self) -> Vec<Handle> {
-        self.handles.iter().map(|&raw| Handle::from_raw(raw)).collect()
+        self.handles
+            .iter()
+            .map(|&raw| Handle::from_raw(raw))
+            .collect()
     }
 
     /// Iterate over the Handles

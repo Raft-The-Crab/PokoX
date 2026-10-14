@@ -171,7 +171,8 @@ impl Id {
 
         // The last part should be the type
         let type_str = parts.last().ok_or(IdParseError::InvalidFormat)?;
-        let id_type = type_str.parse::<u8>()
+        let id_type = type_str
+            .parse::<u8>()
             .ok()
             .and_then(IdType::from_u8)
             .ok_or(IdParseError::InvalidType)?;
@@ -325,7 +326,10 @@ mod tests {
         let uuid = Uuid::new_v4();
         let id1 = Id::from_uuid(uuid, IdType::Model);
         let id2 = Id::from_uuid(uuid, IdType::Part);
-        assert_ne!(id1, id2, "IDs with same UUID but different types should not be equal");
+        assert_ne!(
+            id1, id2,
+            "IDs with same UUID but different types should not be equal"
+        );
     }
 
     #[test]

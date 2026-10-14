@@ -107,6 +107,17 @@ impl ObjectData {
     }
 }
 
+/// Registry statistics
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RegistryStatistics {
+    pub total_objects: usize,
+    pub workspaces: usize,
+    pub models: usize,
+    pub parts: usize,
+    pub total_children: usize,
+    pub max_depth: usize,
+}
+
 /// Workspace: Top-level container for models
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Workspace {
@@ -812,6 +823,125 @@ impl ObjectRegistry {
 
         Ok(())
     }
+
+    /// Get registry statistics
+    pub fn get_stats(&self) -> RegistryStatistics {
+        let mut workspaces = 0;
+        let mut models = 0;
+        let mut parts = 0;
+        let mut total_children = 0;
+        let mut max_depth = 0;
+
+        for handle in self.objects.handles() {
+            if let Ok(obj) = self.objects.get(handle) {
+                match obj.object_type() {
+                    ObjectType::Workspace => workspaces += 1,
+                    ObjectType::Model => models += 1,
+                    ObjectType::Part => parts += 1,
+                }
+                total_children += obj.data().children.len();
+
+                // Calculate depth
+                if let Ok(depth) = self.get_depth(obj.id()) {
+                    max_depth = max_depth.max(depth);
+                }
+            }
+        }
+
+        RegistryStatistics {
+            total_objects: workspaces + models + parts,
+            workspaces,
+            models,
+            parts,
+            total_children,
+            max_depth,
+        }
+    }
+
+    /// Find objects by name
+    pub fn find_by_name(&self, name: &str) -> Vec<Object> {
+        let mut results = Vec::new();
+        for handle in self.objects.handles() {
+            if let Ok(obj) = self.objects.get(handle) {
+                if obj.data().name == name {
+                    results.push(obj.clone());
+                }
+            }
+        }
+        results
+    }
+
+    /// Find objects by type
+    pub fn find_by_type(&self, object_type: ObjectType) -> Vec<Object> {
+        let mut results = Vec::new();
+        for handle in self.objects.handles() {
+            if let Ok(obj) = self.objects.get(handle) {
+                if obj.object_type() == object_type {
+                    results.push(obj.clone());
+                }
+            }
+        }
+        results
+    }
+
+    /// Get all workspaces
+    pub fn get_workspaces(&self) -> Vec<Workspace> {
+        self.find_by_type(ObjectType::Workspace)
+            .into_iter()
+            .filter_map(|obj| {
+                if let Object::Workspace(w) = obj {
+                    Some(w)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Batch create models under a workspace
+    pub fn create_models_batch(
+        &mut self,
+        parent: Id,
+        names: Vec<String>,
+    ) -> Result<Vec<Model>, ObjectModelError> {
+        let mut models = Vec::new();
+        for name in names {
+            let model = self.create_model(parent, name)?;
+            models.push(model);
+        }
+        Ok(models)
+    }
+
+    /// Batch create parts under a parent
+    pub fn create_parts_batch(
+        &mut self,
+        parent: Id,
+        names: Vec<String>,
+    ) -> Result<Vec<Part>, ObjectModelError> {
+        let mut parts = Vec::new();
+        for name in names {
+            let part = self.create_part(parent, name)?;
+            parts.push(part);
+        }
+        Ok(parts)
+    }
+
+    /// Clear all objects from the registry
+    pub fn clear(&mut self) {
+        self.objects = HandleRegistry::new();
+        self.id_to_handle.clear();
+        self.event_listeners.clear();
+    }
+
+    /// Check if an object exists
+    pub fn exists(&self, id: Id) -> bool {
+        self.id_to_handle.contains_key(&id)
+    }
+
+    /// Get object count by type
+    pub fn count_by_type(&self, object_type: ObjectType) -> usize {
+        self.find_by_type(object_type).len()
+    }
 }
 
 impl Default for ObjectRegistry {
@@ -1178,5 +1308,161 @@ mod tests {
         let mut registry = ObjectRegistry::new();
         let result = registry.deserialize_hierarchy("invalid json");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_stats() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let _part = registry
+            .create_part(model.data.id, "TestPart".to_string())
+            .unwrap();
+
+        let stats = registry.get_stats();
+        assert_eq!(stats.total_objects, 3);
+        assert_eq!(stats.workspaces, 1);
+        assert_eq!(stats.models, 1);
+        assert_eq!(stats.parts, 1);
+        assert_eq!(stats.total_children, 2); // workspace has 1 child (model), model has 1 child (part)
+        assert_eq!(stats.max_depth, 2);
+    }
+
+    #[test]
+    fn test_find_by_name() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("MyWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "MyModel".to_string())
+            .unwrap();
+
+        let results = registry.find_by_name("MyModel");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id(), model.data.id);
+
+        let empty = registry.find_by_name("NonExistent");
+        assert!(empty.is_empty());
+    }
+
+    #[test]
+    fn test_find_by_type() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let _part = registry
+            .create_part(model.data.id, "TestPart".to_string())
+            .unwrap();
+
+        let models = registry.find_by_type(ObjectType::Model);
+        assert_eq!(models.len(), 1);
+
+        let parts = registry.find_by_type(ObjectType::Part);
+        assert_eq!(parts.len(), 1);
+    }
+
+    #[test]
+    fn test_get_workspaces() {
+        let mut registry = ObjectRegistry::new();
+        let workspace1 = registry.create_workspace("Workspace1".to_string()).unwrap();
+        let workspace2 = registry.create_workspace("Workspace2".to_string()).unwrap();
+
+        let workspaces = registry.get_workspaces();
+        assert_eq!(workspaces.len(), 2);
+        assert!(workspaces.iter().any(|w| w.data.id == workspace1.data.id));
+        assert!(workspaces.iter().any(|w| w.data.id == workspace2.data.id));
+    }
+
+    #[test]
+    fn test_create_models_batch() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+
+        let names = vec![
+            "Model1".to_string(),
+            "Model2".to_string(),
+            "Model3".to_string(),
+        ];
+        let models = registry
+            .create_models_batch(workspace.data.id, names)
+            .unwrap();
+
+        assert_eq!(models.len(), 3);
+        assert_eq!(registry.count_by_type(ObjectType::Model), 3);
+    }
+
+    #[test]
+    fn test_create_parts_batch() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+
+        let names = vec!["Part1".to_string(), "Part2".to_string()];
+        let parts = registry.create_parts_batch(model.data.id, names).unwrap();
+
+        assert_eq!(parts.len(), 2);
+        assert_eq!(registry.count_by_type(ObjectType::Part), 2);
+    }
+
+    #[test]
+    fn test_clear() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let _model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+
+        assert!(registry.exists(workspace.data.id));
+        registry.clear();
+        assert!(!registry.exists(workspace.data.id));
+
+        let stats = registry.get_stats();
+        assert_eq!(stats.total_objects, 0);
+    }
+
+    #[test]
+    fn test_exists() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+
+        assert!(registry.exists(workspace.data.id));
+        assert!(!registry.exists(Id::random()));
+    }
+
+    #[test]
+    fn test_count_by_type() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let _part = registry
+            .create_part(model.data.id, "TestPart".to_string())
+            .unwrap();
+
+        assert_eq!(registry.count_by_type(ObjectType::Workspace), 1);
+        assert_eq!(registry.count_by_type(ObjectType::Model), 1);
+        assert_eq!(registry.count_by_type(ObjectType::Part), 1);
     }
 }

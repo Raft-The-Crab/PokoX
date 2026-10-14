@@ -2,8 +2,8 @@
 //!
 //! Run with: cargo bench --bench id_serialization
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use poko_ids_handles::{Id, IdType, IdBytes, IdBatch};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use poko_ids_handles::{Id, IdBatch, IdBytes, IdType};
 
 fn bench_id_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("id_creation");
