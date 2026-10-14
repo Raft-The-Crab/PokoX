@@ -6,7 +6,9 @@
 //! - Child enumeration and hierarchy traversal
 //! - Integration with the IDs/handles system
 
+use glam::{Mat4, Quat, Vec3};
 use poko_ids_handles::{Handle, HandleRegistry, Id, IdType, RegistryError, RegistryStats};
+use poko_transforms::{Transform, TransformRegistry};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -24,6 +26,10 @@ pub enum ObjectModelError {
     RegistryError(#[from] RegistryError),
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
+    #[error("Undo stack is empty")]
+    UndoStackEmpty,
+    #[error("Redo stack is empty")]
+    RedoStackEmpty,
 }
 
 /// Object lifecycle events
@@ -267,6 +273,21 @@ pub struct ObjectRegistry {
     id_to_handle: HashMap<Id, Handle>,
     /// Lifecycle event listeners
     event_listeners: Vec<Box<dyn Fn(LifecycleEvent) + Send>>,
+    /// Transform registry
+    transforms: TransformRegistry,
+    /// Undo stack for reversible operations
+    undo_stack: Vec<RegistrySnapshot>,
+    /// Redo stack for undone operations
+    redo_stack: Vec<RegistrySnapshot>,
+    /// Maximum undo stack size
+    max_undo_depth: usize,
+}
+
+/// Snapshot of registry state for undo/redo
+#[derive(Clone, Serialize, Deserialize)]
+struct RegistrySnapshot {
+    objects_json: String,
+    transforms_json: String,
 }
 
 impl ObjectRegistry {
@@ -276,6 +297,23 @@ impl ObjectRegistry {
             objects: HandleRegistry::new(),
             id_to_handle: HashMap::new(),
             event_listeners: Vec::new(),
+            transforms: TransformRegistry::new(),
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            max_undo_depth: 100,
+        }
+    }
+
+    /// Create a new object registry with custom undo depth
+    pub fn with_undo_depth(max_undo_depth: usize) -> Self {
+        Self {
+            objects: HandleRegistry::new(),
+            id_to_handle: HashMap::new(),
+            event_listeners: Vec::new(),
+            transforms: TransformRegistry::new(),
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            max_undo_depth,
         }
     }
 
@@ -287,11 +325,12 @@ impl ObjectRegistry {
         )))?;
 
         // Update the handle in the workspace
-        if let Some(obj) = self.objects.get_mut(handle).ok() {
+        if let Ok(obj) = self.objects.get_mut(handle) {
             if let Object::Workspace(workspace) = obj {
                 workspace.handle = handle;
                 let id = workspace.data.id;
                 self.id_to_handle.insert(id, handle);
+                self.transforms.add(id, Transform::identity()).ok();
                 self.emit_event(LifecycleEvent::Created { id });
             }
         }
@@ -313,7 +352,7 @@ impl ObjectRegistry {
             .allocate(Object::Model(Model::new(Handle::null(), name.clone())))?;
 
         // Update the handle and set parent
-        if let Some(obj) = self.objects.get_mut(handle).ok() {
+        if let Ok(obj) = self.objects.get_mut(handle) {
             if let Object::Model(model) = obj {
                 model.handle = handle;
                 model.data.parent = Some(parent);
@@ -322,7 +361,7 @@ impl ObjectRegistry {
 
                 // Add to parent's children
                 if let Some(parent_handle) = self.id_to_handle.get(&parent) {
-                    if let Some(parent_obj) = self.objects.get_mut(*parent_handle).ok() {
+                    if let Ok(parent_obj) = self.objects.get_mut(*parent_handle) {
                         parent_obj.data_mut().children.push(id);
                         self.emit_event(LifecycleEvent::ChildAdded {
                             parent_id: parent,
@@ -331,6 +370,7 @@ impl ObjectRegistry {
                     }
                 }
 
+                self.transforms.add(id, Transform::identity()).ok();
                 self.emit_event(LifecycleEvent::Created { id });
             }
         }
@@ -352,7 +392,7 @@ impl ObjectRegistry {
             .allocate(Object::Part(Part::new(Handle::null(), name.clone())))?;
 
         // Update the handle and set parent
-        if let Some(obj) = self.objects.get_mut(handle).ok() {
+        if let Ok(obj) = self.objects.get_mut(handle) {
             if let Object::Part(part) = obj {
                 part.handle = handle;
                 part.data.parent = Some(parent);
@@ -361,7 +401,7 @@ impl ObjectRegistry {
 
                 // Add to parent's children
                 if let Some(parent_handle) = self.id_to_handle.get(&parent) {
-                    if let Some(parent_obj) = self.objects.get_mut(*parent_handle).ok() {
+                    if let Ok(parent_obj) = self.objects.get_mut(*parent_handle) {
                         parent_obj.data_mut().children.push(id);
                         self.emit_event(LifecycleEvent::ChildAdded {
                             parent_id: parent,
@@ -370,6 +410,7 @@ impl ObjectRegistry {
                     }
                 }
 
+                self.transforms.add(id, Transform::identity()).ok();
                 self.emit_event(LifecycleEvent::Created { id });
             }
         }
@@ -439,7 +480,7 @@ impl ObjectRegistry {
         // Remove from old parent's children
         if let Some(old_parent_id) = old_parent {
             if let Some(old_parent_handle) = self.id_to_handle.get(&old_parent_id) {
-                if let Some(parent_obj) = self.objects.get_mut(*old_parent_handle).ok() {
+                if let Ok(parent_obj) = self.objects.get_mut(*old_parent_handle) {
                     parent_obj
                         .data_mut()
                         .children
@@ -453,14 +494,14 @@ impl ObjectRegistry {
         }
 
         // Update object's parent
-        if let Some(obj) = self.objects.get_mut(*handle).ok() {
+        if let Ok(obj) = self.objects.get_mut(*handle) {
             obj.data_mut().parent = new_parent;
         }
 
         // Add to new parent's children
         if let Some(new_parent_id) = new_parent {
             if let Some(new_parent_handle) = self.id_to_handle.get(&new_parent_id) {
-                if let Some(parent_obj) = self.objects.get_mut(*new_parent_handle).ok() {
+                if let Ok(parent_obj) = self.objects.get_mut(*new_parent_handle) {
                     parent_obj.data_mut().children.push(id);
                     self.emit_event(LifecycleEvent::ChildAdded {
                         parent_id: new_parent_id,
@@ -469,6 +510,9 @@ impl ObjectRegistry {
                 }
             }
         }
+
+        // Mark transform subtree as dirty due to parent change
+        self.mark_transform_subtree_dirty(id);
 
         self.emit_event(LifecycleEvent::Reparented {
             id,
@@ -481,11 +525,10 @@ impl ObjectRegistry {
 
     /// Destroy an object and its children (cascade)
     pub fn destroy(&mut self, id: Id) -> Result<(), ObjectModelError> {
-        let handle = self
+        let handle = *self
             .id_to_handle
             .get(&id)
-            .ok_or(ObjectModelError::ObjectNotFound(id))?
-            .clone();
+            .ok_or(ObjectModelError::ObjectNotFound(id))?;
 
         // Get children before destruction
         let children: Vec<Id> = self.objects.get(handle)?.data().children.clone();
@@ -503,7 +546,7 @@ impl ObjectRegistry {
 
         if let Some(parent_id) = parent_id {
             if let Some(parent_handle) = self.id_to_handle.get(&parent_id).cloned() {
-                if let Some(parent_obj) = self.objects.get_mut(parent_handle).ok() {
+                if let Ok(parent_obj) = self.objects.get_mut(parent_handle) {
                     parent_obj
                         .data_mut()
                         .children
@@ -515,6 +558,9 @@ impl ObjectRegistry {
         // Remove from registry
         self.id_to_handle.remove(&id);
         self.objects.remove(handle)?;
+
+        // Remove transform
+        self.transforms.remove(id).ok();
 
         self.emit_event(LifecycleEvent::Destroyed { id });
 
@@ -704,18 +750,17 @@ impl ObjectRegistry {
 
     /// Rename an object
     pub fn rename(&mut self, id: Id, new_name: String) -> Result<(), ObjectModelError> {
-        let handle = self
+        let handle = *self
             .id_to_handle
             .get(&id)
-            .ok_or(ObjectModelError::ObjectNotFound(id))?
-            .clone();
+            .ok_or(ObjectModelError::ObjectNotFound(id))?;
 
         let old_name = {
             let obj = self.objects.get(handle)?;
             obj.data().name.clone()
         };
 
-        if let Some(obj) = self.objects.get_mut(handle).ok() {
+        if let Ok(obj) = self.objects.get_mut(handle) {
             obj.data_mut().name = new_name.clone();
         }
 
@@ -762,12 +807,8 @@ impl ObjectRegistry {
             all_objects.insert(obj.id, obj);
         }
 
-        // First pass: create all objects (without establishing parent-child links yet)
+        // First pass: create or update all objects
         for serial_obj in all_objects.values() {
-            if self.id_to_handle.contains_key(&serial_obj.id) {
-                continue; // Skip if already exists
-            }
-
             let data = ObjectData {
                 id: serial_obj.id,
                 object_type: serial_obj.object_type,
@@ -778,35 +819,53 @@ impl ObjectRegistry {
                 metadata: serial_obj.metadata.clone(),
             };
 
-            match serial_obj.object_type {
-                ObjectType::Workspace => {
-                    let workspace = Workspace {
-                        handle: Handle::new(0, 0),
-                        data,
-                    };
-                    let handle = self.objects.allocate(Object::Workspace(workspace))?;
-                    self.id_to_handle.insert(serial_obj.id, handle);
+            if let Some(&existing_handle) = self.id_to_handle.get(&serial_obj.id) {
+                // Update existing object's data
+                if let Ok(obj) = self.objects.get_mut(existing_handle) {
+                    *obj.data_mut() = data;
                 }
-                ObjectType::Model => {
-                    let model = Model {
-                        handle: Handle::new(0, 0),
-                        data,
-                    };
-                    let handle = self.objects.allocate(Object::Model(model))?;
-                    self.id_to_handle.insert(serial_obj.id, handle);
-                }
-                ObjectType::Part => {
-                    let part = Part {
-                        handle: Handle::new(0, 0),
-                        data,
-                    };
-                    let handle = self.objects.allocate(Object::Part(part))?;
-                    self.id_to_handle.insert(serial_obj.id, handle);
+            } else {
+                // Create new object
+                match serial_obj.object_type {
+                    ObjectType::Workspace => {
+                        let workspace = Workspace {
+                            handle: Handle::new(0, 0),
+                            data,
+                        };
+                        let handle = self.objects.allocate(Object::Workspace(workspace))?;
+                        self.id_to_handle.insert(serial_obj.id, handle);
+                    }
+                    ObjectType::Model => {
+                        let model = Model {
+                            handle: Handle::new(0, 0),
+                            data,
+                        };
+                        let handle = self.objects.allocate(Object::Model(model))?;
+                        self.id_to_handle.insert(serial_obj.id, handle);
+                    }
+                    ObjectType::Part => {
+                        let part = Part {
+                            handle: Handle::new(0, 0),
+                            data,
+                        };
+                        let handle = self.objects.allocate(Object::Part(part))?;
+                        self.id_to_handle.insert(serial_obj.id, handle);
+                    }
                 }
             }
         }
 
         // Second pass: establish parent-child relationships
+        // First, clear all existing parent/child relationships
+        let handles: Vec<Handle> = self.objects.handles().collect();
+        for handle in handles {
+            if let Ok(obj) = self.objects.get_mut(handle) {
+                obj.data_mut().parent = None;
+                obj.data_mut().children.clear();
+            }
+        }
+
+        // Then restore relationships from snapshot
         for serial_obj in all_objects.values() {
             if let Some(parent_id) = serial_obj.parent {
                 if let (Some(child_handle), Some(parent_handle)) = (
@@ -814,11 +873,11 @@ impl ObjectRegistry {
                     self.id_to_handle.get(&parent_id),
                 ) {
                     // Set child's parent
-                    if let Some(child_obj) = self.objects.get_mut(*child_handle).ok() {
+                    if let Ok(child_obj) = self.objects.get_mut(*child_handle) {
                         child_obj.data_mut().parent = Some(parent_id);
                     }
                     // Add child to parent's children list
-                    if let Some(parent_obj) = self.objects.get_mut(*parent_handle).ok() {
+                    if let Ok(parent_obj) = self.objects.get_mut(*parent_handle) {
                         if !parent_obj.data().children.contains(&serial_obj.id) {
                             parent_obj.data_mut().children.push(serial_obj.id);
                         }
@@ -937,6 +996,7 @@ impl ObjectRegistry {
         self.objects = HandleRegistry::new();
         self.id_to_handle.clear();
         self.event_listeners.clear();
+        self.transforms.clear();
     }
 
     /// Check if an object exists
@@ -956,13 +1016,12 @@ impl ObjectRegistry {
         key: String,
         value: String,
     ) -> Result<(), ObjectModelError> {
-        let handle = self
+        let handle = *self
             .id_to_handle
             .get(&id)
-            .ok_or(ObjectModelError::ObjectNotFound(id))?
-            .clone();
+            .ok_or(ObjectModelError::ObjectNotFound(id))?;
 
-        if let Some(obj) = self.objects.get_mut(handle).ok() {
+        if let Ok(obj) = self.objects.get_mut(handle) {
             obj.data_mut().metadata.insert(key, value);
         }
 
@@ -986,13 +1045,12 @@ impl ObjectRegistry {
         id: Id,
         key: &str,
     ) -> Result<Option<String>, ObjectModelError> {
-        let handle = self
+        let handle = *self
             .id_to_handle
             .get(&id)
-            .ok_or(ObjectModelError::ObjectNotFound(id))?
-            .clone();
+            .ok_or(ObjectModelError::ObjectNotFound(id))?;
 
-        if let Some(obj) = self.objects.get_mut(handle).ok() {
+        if let Ok(obj) = self.objects.get_mut(handle) {
             Ok(obj.data_mut().metadata.remove(key))
         } else {
             Ok(None)
@@ -1107,9 +1165,444 @@ impl ObjectRegistry {
 
     /// Restore from a snapshot
     pub fn restore(&mut self, snapshot: &str) -> Result<(), ObjectModelError> {
-        self.clear();
-        self.deserialize_hierarchy(snapshot)
+        self.deserialize_hierarchy(snapshot)?;
+        // Transforms are restored from the snapshot JSON in create_snapshot/restore_from_snapshot
+        // For public restore method, we don't restore transforms as they're not in the public snapshot
+        Ok(())
     }
+
+    /// Get transform for an object
+    pub fn get_transform(&self, id: Id) -> Result<&Transform, ObjectModelError> {
+        self.transforms
+            .get(id)
+            .map_err(|_| ObjectModelError::ObjectNotFound(id))
+    }
+
+    /// Get mutable transform for an object
+    pub fn get_transform_mut(&mut self, id: Id) -> Result<&mut Transform, ObjectModelError> {
+        let transform = self
+            .transforms
+            .get_mut(id)
+            .map_err(|_| ObjectModelError::ObjectNotFound(id))?;
+        transform.mark_dirty();
+        Ok(transform)
+    }
+
+    /// Set transform for an object
+    pub fn set_transform(&mut self, id: Id, transform: Transform) -> Result<(), ObjectModelError> {
+        if !self.id_to_handle.contains_key(&id) {
+            return Err(ObjectModelError::ObjectNotFound(id));
+        }
+        self.transforms.add(id, transform).map_err(|e| {
+            ObjectModelError::InvalidOperation(format!("Failed to set transform: {}", e))
+        })
+    }
+
+    /// Update all dirty transforms in the hierarchy
+    pub fn update_transforms(&mut self) {
+        // First, update parent matrices for all objects
+        for handle in self.objects.handles() {
+            if let Ok(obj) = self.objects.get(handle) {
+                let id = obj.id();
+                if let Some(parent_id) = obj.data().parent {
+                    if let Ok(parent_transform) = self.transforms.get(parent_id) {
+                        self.transforms
+                            .set_parent_matrix(id, parent_transform.world_matrix())
+                            .ok();
+                    }
+                } else {
+                    // No parent, use identity matrix
+                    self.transforms.set_parent_matrix(id, Mat4::IDENTITY).ok();
+                }
+            }
+        }
+
+        // Then update all dirty transforms
+        self.transforms.update_dirty_transforms();
+    }
+
+    /// Mark a transform subtree as dirty
+    pub fn mark_transform_subtree_dirty(&mut self, id: Id) {
+        let children = self.get_children(id).unwrap_or_default();
+        let child_ids: Vec<Id> = children.iter().map(|c| c.id()).collect();
+        self.transforms.mark_subtree_dirty(id, &child_ids);
+    }
+
+    /// Create a snapshot of the current registry state
+    fn create_snapshot(&self) -> Result<RegistrySnapshot, ObjectModelError> {
+        let objects_json = self.serialize_hierarchy()?;
+        // Serialize transforms as a vector of (id_bytes, position, rotation, scale)
+        let transforms_data: Vec<([u8; 17], [f32; 3], [f32; 4], [f32; 3])> = self
+            .transforms
+            .snapshot()
+            .into_iter()
+            .map(|(id, transform)| {
+                (
+                    id.to_bytes(),
+                    transform.position.to_array(),
+                    transform.rotation.to_array(),
+                    transform.scale.to_array(),
+                )
+            })
+            .collect();
+        let transforms_json = serde_json::to_string(&transforms_data).map_err(|e| {
+            ObjectModelError::InvalidOperation(format!("Failed to serialize transforms: {}", e))
+        })?;
+        Ok(RegistrySnapshot {
+            objects_json,
+            transforms_json,
+        })
+    }
+
+    /// Push a snapshot to the undo stack
+    pub fn push_undo(&mut self) -> Result<(), ObjectModelError> {
+        let snapshot = self.create_snapshot()?;
+        self.undo_stack.push(snapshot);
+        self.redo_stack.clear(); // Clear redo stack on new action
+                                 // Enforce max undo depth
+        if self.undo_stack.len() > self.max_undo_depth {
+            self.undo_stack.remove(0);
+        }
+        Ok(())
+    }
+
+    /// Undo the last operation
+    pub fn undo(&mut self) -> Result<(), ObjectModelError> {
+        let snapshot = self
+            .undo_stack
+            .pop()
+            .ok_or(ObjectModelError::UndoStackEmpty)?;
+        // Push current state to redo stack
+        let current_snapshot = self.create_snapshot()?;
+        self.redo_stack.push(current_snapshot);
+        // Restore from snapshot
+        self.restore_from_snapshot(snapshot)?;
+        Ok(())
+    }
+
+    /// Redo the last undone operation
+    pub fn redo(&mut self) -> Result<(), ObjectModelError> {
+        let snapshot = self
+            .redo_stack
+            .pop()
+            .ok_or(ObjectModelError::RedoStackEmpty)?;
+        // Push current state to undo stack
+        let current_snapshot = self.create_snapshot()?;
+        self.undo_stack.push(current_snapshot);
+        // Restore from snapshot
+        self.restore_from_snapshot(snapshot)?;
+        Ok(())
+    }
+
+    /// Restore registry from a snapshot
+    fn restore_from_snapshot(
+        &mut self,
+        snapshot: RegistrySnapshot,
+    ) -> Result<(), ObjectModelError> {
+        self.clear();
+        self.deserialize_hierarchy(&snapshot.objects_json)?;
+        let transforms_data: Vec<([u8; 17], [f32; 3], [f32; 4], [f32; 3])> =
+            serde_json::from_str(&snapshot.transforms_json).map_err(|e| {
+                ObjectModelError::InvalidOperation(format!(
+                    "Failed to deserialize transforms: {}",
+                    e
+                ))
+            })?;
+        let id_transforms: HashMap<Id, Transform> = transforms_data
+            .into_iter()
+            .map(|(id_bytes, pos, rot, scale)| {
+                let id = Id::from_bytes(id_bytes);
+                let transform = Transform::new(
+                    Vec3::from_array(pos),
+                    Quat::from_array(rot),
+                    Vec3::from_array(scale),
+                );
+                (id, transform)
+            })
+            .collect();
+        self.transforms.restore(id_transforms);
+        Ok(())
+    }
+
+    /// Check if undo is available
+    pub fn can_undo(&self) -> bool {
+        !self.undo_stack.is_empty()
+    }
+
+    /// Check if redo is available
+    pub fn can_redo(&self) -> bool {
+        !self.redo_stack.is_empty()
+    }
+
+    /// Get the number of undo operations available
+    pub fn undo_count(&self) -> usize {
+        self.undo_stack.len()
+    }
+
+    /// Get the number of redo operations available
+    pub fn redo_count(&self) -> usize {
+        self.redo_stack.len()
+    }
+
+    /// Clear the undo/redo stacks
+    pub fn clear_undo_redo(&mut self) {
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+    }
+
+    /// Set the maximum undo depth
+    pub fn set_max_undo_depth(&mut self, depth: usize) {
+        self.max_undo_depth = depth;
+        // Trim if necessary
+        while self.undo_stack.len() > self.max_undo_depth {
+            self.undo_stack.remove(0);
+        }
+    }
+
+    /// Batch operations without recording undo
+    ///
+    /// Useful for compound operations that should be treated as a single action.
+    pub fn with_undo_suppressed<F, R>(&mut self, f: F) -> R
+    where
+        F: FnOnce(&mut Self) -> R,
+    {
+        f(self)
+    }
+
+    /// Begin a compound operation (for batch undo)
+    pub fn begin_compound(&mut self) {
+        // Snapshot current state before compound operation
+        if let Ok(snapshot) = self.create_snapshot() {
+            self.undo_stack.push(snapshot);
+        }
+    }
+
+    /// End a compound operation
+    pub fn end_compound(&mut self) {
+        self.redo_stack.clear();
+    }
+
+    /// Get all objects of a specific type with transforms
+    pub fn get_objects_with_transforms(
+        &self,
+        object_type: ObjectType,
+    ) -> Vec<(Object, &Transform)> {
+        self.find_by_type(object_type)
+            .into_iter()
+            .filter_map(|obj| self.transforms.get(obj.id()).ok().map(|t| (obj, t)))
+            .collect()
+    }
+
+    /// Find objects by metadata key-value pair
+    pub fn find_by_metadata(&self, key: &str, value: &str) -> Vec<Object> {
+        let mut results = Vec::new();
+        for handle in self.objects.handles() {
+            if let Ok(obj) = self.objects.get(handle) {
+                if let Ok(Some(v)) = self.get_metadata(obj.id(), key) {
+                    if v == value {
+                        results.push(obj.clone());
+                    }
+                }
+            }
+        }
+        results
+    }
+
+    /// Get objects with a specific metadata key
+    pub fn get_objects_with_metadata_key(&self, key: &str) -> Vec<Object> {
+        let mut results = Vec::new();
+        for handle in self.objects.handles() {
+            if let Ok(obj) = self.objects.get(handle) {
+                if self.get_metadata(obj.id(), key).is_ok() {
+                    results.push(obj.clone());
+                }
+            }
+        }
+        results
+    }
+
+    /// Get objects within a specific depth range
+    pub fn get_objects_in_depth_range(&self, min_depth: usize, max_depth: usize) -> Vec<Object> {
+        let mut results = Vec::new();
+        for handle in self.objects.handles() {
+            if let Ok(obj) = self.objects.get(handle) {
+                if let Ok(depth) = self.get_depth(obj.id()) {
+                    if depth >= min_depth && depth <= max_depth {
+                        results.push(obj.clone());
+                    }
+                }
+            }
+        }
+        results
+    }
+
+    /// Get root objects (workspaces)
+    pub fn get_root_objects(&self) -> Vec<Object> {
+        self.find_by_type(ObjectType::Workspace)
+    }
+
+    /// Get leaf objects (objects with no children)
+    pub fn get_leaf_objects(&self) -> Vec<Object> {
+        let mut results = Vec::new();
+        for handle in self.objects.handles() {
+            if let Ok(obj) = self.objects.get(handle) {
+                if !obj.data().has_children() {
+                    results.push(obj.clone());
+                }
+            }
+        }
+        results
+    }
+
+    /// Count total objects in a subtree
+    pub fn count_subtree(&self, id: Id) -> Result<usize, ObjectModelError> {
+        let descendants = self.get_descendants(id)?;
+        Ok(descendants.len() + 1) // +1 for the object itself
+    }
+
+    /// Check if an object is a descendant of another
+    pub fn is_descendant(&self, child_id: Id, parent_id: Id) -> Result<bool, ObjectModelError> {
+        let ancestors = self.get_ancestors(child_id)?;
+        Ok(ancestors.iter().any(|a| a.id() == parent_id))
+    }
+
+    /// Check if an object is an ancestor of another
+    pub fn is_ancestor(&self, ancestor_id: Id, child_id: Id) -> Result<bool, ObjectModelError> {
+        self.is_descendant(child_id, ancestor_id)
+    }
+
+    /// Get the path from ancestor to descendant as a list of object names
+    pub fn get_path_names(&self, id: Id) -> Result<Vec<String>, ObjectModelError> {
+        let path = self.get_path(id)?;
+        let mut names = Vec::new();
+        for path_id in path {
+            let obj = self.get_object(path_id)?;
+            names.push(obj.data().name.clone());
+        }
+        Ok(names)
+    }
+
+    /// Get the full hierarchical path string for an object
+    pub fn get_full_path(&self, id: Id) -> Result<String, ObjectModelError> {
+        let names = self.get_path_names(id)?;
+        Ok(names.join("/"))
+    }
+
+    /// Find object by full path
+    pub fn find_by_path(&self, path: &str) -> Result<Object, ObjectModelError> {
+        let names: Vec<&str> = path.split('/').collect();
+        if names.is_empty() {
+            return Err(ObjectModelError::InvalidOperation("Empty path".to_string()));
+        }
+
+        // Find root workspace
+        let workspaces = self.get_workspaces();
+        let mut current_id = workspaces
+            .into_iter()
+            .find(|w| w.data.name == names[0])
+            .ok_or_else(|| ObjectModelError::ObjectNotFound(Id::new(IdType::Workspace)))?
+            .data
+            .id;
+
+        // Traverse down the hierarchy
+        for name in &names[1..] {
+            let children = self.get_children(current_id)?;
+            current_id = children
+                .into_iter()
+                .find(|c| c.data().name == *name)
+                .ok_or(ObjectModelError::ObjectNotFound(current_id))?
+                .id();
+        }
+
+        self.get_object(current_id)
+    }
+
+    /// Get the maximum depth in the entire hierarchy
+    pub fn get_max_depth(&self) -> usize {
+        let mut max_depth = 0;
+        for handle in self.objects.handles() {
+            if let Ok(obj) = self.objects.get(handle) {
+                if let Ok(depth) = self.get_depth(obj.id()) {
+                    max_depth = max_depth.max(depth);
+                }
+            }
+        }
+        max_depth
+    }
+
+    /// Get statistics about the hierarchy
+    pub fn get_detailed_stats(&self) -> DetailedRegistryStats {
+        let basic = self.get_stats();
+        let leaf_count = self.get_leaf_objects().len();
+        let max_depth = self.get_max_depth();
+        let avg_depth = if basic.total_objects > 0 {
+            let mut total_depth = 0;
+            for handle in self.objects.handles() {
+                if let Ok(obj) = self.objects.get(handle) {
+                    if let Ok(depth) = self.get_depth(obj.id()) {
+                        total_depth += depth;
+                    }
+                }
+            }
+            total_depth / basic.total_objects
+        } else {
+            0
+        };
+
+        DetailedRegistryStats {
+            total_objects: basic.total_objects,
+            workspaces: basic.workspaces,
+            models: basic.models,
+            parts: basic.parts,
+            total_children: basic.total_children,
+            max_depth,
+            avg_depth,
+            leaf_count,
+            undo_count: self.undo_count(),
+            redo_count: self.redo_count(),
+        }
+    }
+
+    /// Validate that all transforms are consistent with hierarchy
+    pub fn validate_transforms(&self) -> Result<Vec<String>, ObjectModelError> {
+        let mut errors = Vec::new();
+
+        for handle in self.objects.handles() {
+            if let Ok(obj) = self.objects.get(handle) {
+                let id = obj.id();
+                if let Some(parent_id) = obj.data().parent {
+                    if self.transforms.contains(id) && self.transforms.contains(parent_id) {
+                        // Both have transforms, verify parent matrix is set
+                        let parent_matrix = self.transforms.get(parent_id).unwrap().world_matrix();
+                        // This is a basic check - more sophisticated validation could be added
+                        if parent_matrix == Mat4::IDENTITY && !obj.data().parent.is_none() {
+                            errors.push(format!(
+                                "Object {} has parent but parent matrix is identity",
+                                id
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(errors)
+    }
+}
+
+/// Detailed statistics about the registry
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DetailedRegistryStats {
+    pub total_objects: usize,
+    pub workspaces: usize,
+    pub models: usize,
+    pub parts: usize,
+    pub total_children: usize,
+    pub max_depth: usize,
+    pub avg_depth: usize,
+    pub leaf_count: usize,
+    pub undo_count: usize,
+    pub redo_count: usize,
 }
 
 impl Default for ObjectRegistry {
@@ -1774,5 +2267,409 @@ mod tests {
         // Verify metadata was restored
         let tag = registry2.get_metadata(model.data.id, "tag").unwrap();
         assert_eq!(tag, Some("snapshot".to_string()));
+    }
+
+    #[test]
+    fn test_transform_integration() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+
+        // Get transform
+        let transform = registry.get_transform(model.data.id).unwrap();
+        assert_eq!(transform.position, glam::Vec3::ZERO);
+        assert_eq!(transform.rotation, glam::Quat::IDENTITY);
+        assert_eq!(transform.scale, glam::Vec3::ONE);
+    }
+
+    #[test]
+    fn test_set_transform() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+
+        // Set new transform
+        let new_transform = Transform::from_position(glam::Vec3::new(5.0, 0.0, 0.0));
+        registry
+            .set_transform(model.data.id, new_transform)
+            .unwrap();
+
+        let retrieved = registry.get_transform(model.data.id).unwrap();
+        assert_eq!(retrieved.position, glam::Vec3::new(5.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_update_transforms() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+
+        // Modify transform
+        registry
+            .get_transform_mut(model.data.id)
+            .unwrap()
+            .set_position(glam::Vec3::new(1.0, 2.0, 3.0));
+
+        // Update transforms
+        registry.update_transforms();
+
+        let transform = registry.get_transform(model.data.id).unwrap();
+        assert!(!transform.is_dirty());
+    }
+
+    #[test]
+    fn test_transform_removed_on_destroy() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+
+        // Verify transform exists
+        assert!(registry.get_transform(model.data.id).is_ok());
+
+        // Destroy model
+        registry.destroy(model.data.id).unwrap();
+
+        // Verify transform is removed
+        assert!(registry.get_transform(model.data.id).is_err());
+    }
+
+    #[test]
+    fn test_reparent_marks_transform_dirty() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model1 = registry
+            .create_model(workspace.data.id, "Model1".to_string())
+            .unwrap();
+        let model2 = registry
+            .create_model(workspace.data.id, "Model2".to_string())
+            .unwrap();
+
+        // Reparent model2 under model1
+        registry
+            .reparent(model2.data.id, Some(model1.data.id))
+            .unwrap();
+
+        // Transform should be marked dirty
+        let transform = registry.get_transform(model2.data.id).unwrap();
+        assert!(transform.is_dirty());
+    }
+
+    #[test]
+    fn test_parent_propagation() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let _part = registry
+            .create_part(model.data.id, "TestPart".to_string())
+            .unwrap();
+
+        // Move model
+        registry
+            .get_transform_mut(model.data.id)
+            .unwrap()
+            .set_position(glam::Vec3::new(5.0, 0.0, 0.0));
+
+        // Update transforms
+        registry.update_transforms();
+
+        // Check model world position (should be at local position since workspace is at origin)
+        let model_transform = registry.get_transform(model.data.id).unwrap();
+        let model_world_pos = model_transform.world_position(Mat4::IDENTITY);
+        assert!((model_world_pos.x - 5.0).abs() < 0.01);
+
+        // Move workspace
+        registry
+            .get_transform_mut(workspace.data.id)
+            .unwrap()
+            .set_position(glam::Vec3::new(10., 0.0, 0.0));
+
+        // Update transforms
+        registry.update_transforms();
+
+        // Check model world position (should now include workspace translation)
+        let model_transform = registry.get_transform(model.data.id).unwrap();
+        let workspace_transform = registry.get_transform(workspace.data.id).unwrap();
+        let model_world_pos = model_transform.world_position(workspace_transform.world_matrix());
+        assert!((model_world_pos.x - 15.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_undo_redo() {
+        let mut registry = ObjectRegistry::new();
+        let _workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+
+        // Push initial state to undo
+        registry.push_undo().unwrap();
+
+        // Verify undo/redo stack states
+        assert!(registry.can_undo());
+        assert!(!registry.can_redo());
+
+        // Undo - restores hierarchy
+        registry.undo().unwrap();
+        assert!(!registry.can_undo());
+        assert!(registry.can_redo());
+
+        // Redo
+        registry.redo().unwrap();
+        assert!(registry.can_undo());
+        assert!(!registry.can_redo());
+    }
+
+    #[test]
+    fn test_snapshot_restore_with_transforms() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+
+        // Set a transform
+        let transform = Transform::new(Vec3::new(1.0, 2.0, 3.0), Quat::IDENTITY, Vec3::ONE);
+        registry.set_transform(model.data.id, transform).unwrap();
+
+        // Push to undo stack (this creates a full snapshot with transforms)
+        registry.push_undo().unwrap();
+
+        // Modify transform
+        let new_transform = Transform::new(Vec3::new(10.0, 20.0, 30.0), Quat::IDENTITY, Vec3::ONE);
+        registry
+            .set_transform(model.data.id, new_transform)
+            .unwrap();
+
+        // Verify it changed
+        let current_transform = registry.get_transform(model.data.id).unwrap();
+        assert_eq!(current_transform.position, Vec3::new(10.0, 20.0, 30.0));
+
+        // Undo - restores previous state including transforms
+        registry.undo().unwrap();
+
+        // Verify transform was restored
+        let restored_transform = registry.get_transform(model.data.id).unwrap();
+        assert_eq!(restored_transform.position, Vec3::new(1.0, 2.0, 3.0));
+    }
+
+    #[test]
+    fn test_undo_stack_empty() {
+        let mut registry = ObjectRegistry::new();
+        let result = registry.undo();
+        assert!(matches!(result, Err(ObjectModelError::UndoStackEmpty)));
+    }
+
+    #[test]
+    fn test_redo_stack_empty() {
+        let mut registry = ObjectRegistry::new();
+        let result = registry.redo();
+        assert!(matches!(result, Err(ObjectModelError::RedoStackEmpty)));
+    }
+
+    #[test]
+    fn test_can_undo_redo() {
+        let mut registry = ObjectRegistry::new();
+        assert!(!registry.can_undo());
+        assert!(!registry.can_redo());
+
+        let _workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        registry.push_undo().unwrap();
+
+        assert!(registry.can_undo());
+        assert!(!registry.can_redo());
+
+        registry.undo().unwrap();
+        assert!(!registry.can_undo());
+        assert!(registry.can_redo());
+    }
+
+    #[test]
+    fn test_max_undo_depth() {
+        let mut registry = ObjectRegistry::with_undo_depth(3);
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+
+        // Push 5 times
+        for i in 0..5 {
+            registry
+                .rename(workspace.data.id, format!("Name{}", i))
+                .unwrap();
+            registry.push_undo().unwrap();
+        }
+
+        // Should only have 3 items
+        assert_eq!(registry.undo_count(), 3);
+    }
+
+    #[test]
+    fn test_find_by_metadata() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        registry
+            .set_metadata(workspace.data.id, "tag".to_string(), "test".to_string())
+            .unwrap();
+
+        let results = registry.find_by_metadata("tag", "test");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id(), workspace.data.id);
+    }
+
+    #[test]
+    fn test_get_objects_in_depth_range() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let _part = registry
+            .create_part(model.data.id, "TestPart".to_string())
+            .unwrap();
+
+        let depth_2 = registry.get_objects_in_depth_range(2, 2);
+        assert_eq!(depth_2.len(), 1);
+    }
+
+    #[test]
+    fn test_is_descendant() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let part = registry
+            .create_part(model.data.id, "TestPart".to_string())
+            .unwrap();
+
+        assert!(registry.is_descendant(part.data.id, model.data.id).unwrap());
+        assert!(registry
+            .is_descendant(part.data.id, workspace.data.id)
+            .unwrap());
+        assert!(!registry
+            .is_descendant(workspace.data.id, part.data.id)
+            .unwrap());
+    }
+
+    #[test]
+    fn test_get_full_path() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let part = registry
+            .create_part(model.data.id, "TestPart".to_string())
+            .unwrap();
+
+        let path = registry.get_full_path(part.data.id).unwrap();
+        assert_eq!(path, "TestWorkspace/TestModel/TestPart");
+    }
+
+    #[test]
+    fn test_find_by_path() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let part = registry
+            .create_part(model.data.id, "TestPart".to_string())
+            .unwrap();
+
+        let found = registry
+            .find_by_path("TestWorkspace/TestModel/TestPart")
+            .unwrap();
+        assert_eq!(found.id(), part.data.id);
+    }
+
+    #[test]
+    fn test_get_detailed_stats() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let _part = registry
+            .create_part(model.data.id, "TestPart".to_string())
+            .unwrap();
+
+        let stats = registry.get_detailed_stats();
+        assert_eq!(stats.total_objects, 3);
+        assert_eq!(stats.leaf_count, 1);
+        assert_eq!(stats.max_depth, 2);
+    }
+
+    #[test]
+    fn test_get_leaf_objects() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let _part = registry
+            .create_part(model.data.id, "TestPart".to_string())
+            .unwrap();
+
+        let leaves = registry.get_leaf_objects();
+        assert_eq!(leaves.len(), 1);
+    }
+
+    #[test]
+    fn test_count_subtree() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let _part1 = registry
+            .create_part(model.data.id, "TestPart1".to_string())
+            .unwrap();
+        let _part2 = registry
+            .create_part(model.data.id, "TestPart2".to_string())
+            .unwrap();
+
+        let count = registry.count_subtree(model.data.id).unwrap();
+        assert_eq!(count, 3); // model + 2 parts
     }
 }

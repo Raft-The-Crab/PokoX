@@ -175,7 +175,7 @@ let gen = counter.increment();
 
 // Pre-allocated generation pool
 let mut pool = GenerationPool::with_capacity(100);
-let gen = pool.next().unwrap();
+let gen = pool.next_generation().unwrap();
 
 // Generation comparison
 assert!(GenerationValidator::is_newer(5, 3));

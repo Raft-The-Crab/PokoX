@@ -164,7 +164,7 @@ fn test_generation_pool_concurrent() {
             let mut generations = Vec::new();
             for _ in 0..items_per_thread {
                 let mut pool = pool_clone.lock().unwrap();
-                if let Some(gen) = pool.next() {
+                if let Some(gen) = pool.next_generation() {
                     generations.push(gen);
                 }
             }

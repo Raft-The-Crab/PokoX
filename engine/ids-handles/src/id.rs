@@ -62,7 +62,7 @@ impl Default for IdGenerator {
 }
 
 /// The type/category of an object
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum IdType {
     /// Workspace container
@@ -224,6 +224,85 @@ impl Id {
     pub fn same_uuid(&self, other: &Self) -> bool {
         self.uuid == other.uuid
     }
+
+    /// Get the ID version (from UUID)
+    pub fn version(&self) -> Option<uuid::Version> {
+        self.uuid.get_version()
+    }
+
+    /// Get the ID variant (from UUID)
+    pub fn variant(&self) -> uuid::Variant {
+        self.uuid.get_variant()
+    }
+
+    /// Create an ID from a string (UUID format only, no type suffix)
+    ///
+    /// Defaults to Custom type
+    pub fn from_uuid_str(s: &str) -> Result<Self, IdParseError> {
+        let uuid = Uuid::parse_str(s).map_err(|_| IdParseError::InvalidUuid)?;
+        Ok(Self {
+            uuid,
+            id_type: IdType::Custom,
+        })
+    }
+
+    /// Create an ID from a string with explicit type suffix
+    ///
+    /// Format: "uuid-type" where type is a number
+    pub fn from_str_with_type(s: &str, id_type: IdType) -> Result<Self, IdParseError> {
+        let uuid = Uuid::parse_str(s).map_err(|_| IdParseError::InvalidUuid)?;
+        Ok(Self { uuid, id_type })
+    }
+
+    /// Validate that this ID is not nil and has a valid UUID
+    pub fn validate(&self) -> Result<(), IdParseError> {
+        if self.is_nil() {
+            return Err(IdParseError::InvalidFormat);
+        }
+        // UUID is always valid if not nil
+        Ok(())
+    }
+
+    /// Get the timestamp from a v1 UUID (returns None for other versions)
+    ///
+    /// Returns the timestamp as Unix seconds since epoch
+    pub fn timestamp(&self) -> Option<u64> {
+        if self.uuid.get_version() == Some(uuid::Version::Mac) {
+            // For v1 UUIDs, extract the timestamp
+            // The uuid crate's get_timestamp() returns a Timestamp struct
+            // We'll convert it to Unix seconds
+            let timestamp = self.uuid.get_timestamp()?;
+            let (seconds, _nanos) = timestamp.to_unix();
+            Some(seconds)
+        } else {
+            None
+        }
+    }
+
+    /// Create a v4 ID with specific bytes (for testing)
+    #[cfg(test)]
+    pub fn from_uuid_bytes(bytes: [u8; 16], id_type: IdType) -> Self {
+        Self {
+            uuid: Uuid::from_bytes(bytes),
+            id_type,
+        }
+    }
+}
+
+impl PartialOrd for Id {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Id {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // Compare by type first, then by UUID
+        match self.id_type.cmp(&other.id_type) {
+            std::cmp::Ordering::Equal => self.uuid.cmp(&other.uuid),
+            other => other,
+        }
+    }
 }
 
 impl Default for Id {
@@ -382,5 +461,73 @@ mod tests {
         let id2 = Id::from_uuid(uuid, IdType::Part);
         assert!(id1.same_uuid(&id2));
         assert_ne!(id1, id2);
+    }
+
+    #[test]
+    fn test_id_version() {
+        let id = Id::new(IdType::Model);
+        assert_eq!(id.version(), Some(uuid::Version::Random));
+    }
+
+    #[test]
+    fn test_id_variant() {
+        let id = Id::new(IdType::Part);
+        assert_eq!(id.variant(), uuid::Variant::RFC4122);
+    }
+
+    #[test]
+    fn test_id_from_uuid_str() {
+        let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
+        let id = Id::from_uuid_str(uuid_str).unwrap();
+        assert_eq!(id.id_type(), IdType::Custom);
+        assert!(!id.is_nil());
+    }
+
+    #[test]
+    fn test_id_from_str_with_type() {
+        let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
+        let id = Id::from_str_with_type(uuid_str, IdType::Model).unwrap();
+        assert_eq!(id.id_type(), IdType::Model);
+    }
+
+    #[test]
+    fn test_id_validate() {
+        let id = Id::new(IdType::Model);
+        assert!(id.validate().is_ok());
+
+        let nil = Id::nil(IdType::Custom);
+        assert!(nil.validate().is_err());
+    }
+
+    #[test]
+    fn test_id_ordering() {
+        let id1 = Id::new(IdType::Model);
+        let id2 = Id::new(IdType::Part);
+        let _id3 = Id::new(IdType::Model);
+
+        // Ordering by type first
+        assert!(id1 < id2);
+        assert!(id2 > id1);
+
+        // Same type, compare by UUID
+        let uuid = Uuid::new_v4();
+        let id4 = Id::from_uuid(uuid, IdType::Model);
+        let id5 = Id::from_uuid(uuid, IdType::Model);
+        assert_eq!(id4, id5);
+    }
+
+    #[test]
+    fn test_id_timestamp_v4() {
+        let id = Id::new(IdType::Model);
+        // v4 UUIDs don't have timestamps
+        assert!(id.timestamp().is_none());
+    }
+
+    #[test]
+    fn test_id_from_uuid_bytes() {
+        let bytes = [0u8; 16];
+        let id = Id::from_uuid_bytes(bytes, IdType::Asset);
+        assert!(id.is_nil());
+        assert_eq!(id.id_type(), IdType::Asset);
     }
 }

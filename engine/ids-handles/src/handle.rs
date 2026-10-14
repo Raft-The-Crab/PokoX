@@ -103,6 +103,73 @@ impl Handle {
         }
         self.generation.wrapping_sub(other.generation) < u16::MAX / 2
     }
+
+    /// Check if this handle is older than another (based on generation)
+    pub fn is_older_than(&self, other: &Self) -> bool {
+        if self.index != other.index {
+            return false;
+        }
+        other.is_newer_than(self)
+    }
+
+    /// Get the generation distance between two handles (same index only)
+    ///
+    /// Returns None if handles have different indices.
+    pub fn generation_distance(&self, other: &Self) -> Option<u16> {
+        if self.index != other.index {
+            return None;
+        }
+        Some(self.generation.wrapping_sub(other.generation))
+    }
+
+    /// Convert handle to bytes (4 bytes, little-endian)
+    pub fn to_bytes(&self) -> [u8; 4] {
+        let raw = self.to_raw();
+        raw.to_le_bytes()
+    }
+
+    /// Create handle from bytes (4 bytes, little-endian)
+    pub fn from_bytes(bytes: [u8; 4]) -> Self {
+        let raw = u32::from_le_bytes(bytes);
+        Self::from_raw(raw)
+    }
+
+    /// Create a handle with index 0 and generation 0
+    pub fn first() -> Self {
+        Self::new(0, 0)
+    }
+
+    /// Increment the index (for testing purposes)
+    #[cfg(test)]
+    pub fn with_incremented_index(self) -> Self {
+        Self {
+            index: self.index.wrapping_add(1),
+            generation: self.generation,
+        }
+    }
+
+    /// Create a handle with a specific index, null generation
+    pub fn from_index(index: HandleIndex) -> Self {
+        Self::new(index, 0)
+    }
+}
+
+impl PartialOrd for Handle {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self.index != other.index {
+            return Some(self.index.cmp(&other.index));
+        }
+        Some(self.generation.cmp(&other.generation))
+    }
+}
+
+impl Ord for Handle {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if self.index != other.index {
+            return self.index.cmp(&other.index);
+        }
+        self.generation.cmp(&other.generation)
+    }
 }
 
 impl Default for Handle {
@@ -188,5 +255,69 @@ mod tests {
         assert!(!h1.is_newer_than(&h2));
         // Different indices should return false
         assert!(!h3.is_newer_than(&h1));
+    }
+
+    #[test]
+    fn test_handle_is_older_than() {
+        let h1 = Handle::new(1, 1);
+        let h2 = Handle::new(1, 2);
+
+        assert!(h1.is_older_than(&h2));
+        assert!(!h2.is_older_than(&h1));
+    }
+
+    #[test]
+    fn test_generation_distance() {
+        let h1 = Handle::new(1, 1);
+        let h2 = Handle::new(1, 5);
+        let h3 = Handle::new(2, 1);
+
+        let dist = h1.generation_distance(&h2);
+        // wrapping_sub will give the wrapping distance
+        assert!(dist.is_some());
+
+        // Different indices
+        assert_eq!(h1.generation_distance(&h3), None);
+    }
+
+    #[test]
+    fn test_to_from_bytes() {
+        let handle = Handle::new(123, 456);
+        let bytes = handle.to_bytes();
+        let reconstructed = Handle::from_bytes(bytes);
+        assert_eq!(handle, reconstructed);
+    }
+
+    #[test]
+    fn test_handle_first() {
+        let first = Handle::first();
+        assert_eq!(first.index(), 0);
+        assert_eq!(first.generation(), 0);
+    }
+
+    #[test]
+    fn test_from_index() {
+        let handle = Handle::from_index(42);
+        assert_eq!(handle.index(), 42);
+        assert_eq!(handle.generation(), 0);
+    }
+
+    #[test]
+    fn test_handle_ordering() {
+        let h1 = Handle::new(1, 1);
+        let h2 = Handle::new(1, 2);
+        let h3 = Handle::new(2, 1);
+
+        assert!(h1 < h2);
+        assert!(h2 > h1);
+        assert!(h1 < h3); // Different index, compare by index
+    }
+
+    #[test]
+    fn test_handle_bytes_null() {
+        let null = Handle::null();
+        let bytes = null.to_bytes();
+        let reconstructed = Handle::from_bytes(bytes);
+        assert_eq!(null, reconstructed);
     }
 }

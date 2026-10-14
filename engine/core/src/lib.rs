@@ -9,6 +9,16 @@ pub use poko_ids_handles::{
 };
 
 pub use poko_object_model::{
-    LifecycleEvent, Model, Object, ObjectData, ObjectModelError, ObjectRegistry, ObjectType, Part,
-    RegistryStatistics, Workspace,
+    DetailedRegistryStats, LifecycleEvent, Model, Object, ObjectData, ObjectModelError, ObjectRegistry,
+    ObjectType, Part, RegistryStatistics, Workspace,
+};
+
+pub use poko_transforms::{
+    Transform, TransformError, TransformRegistry, TransformStats,
+};
+
+pub use poko_metadata_registry::{
+    DataType, DefaultValue, EventMetadata, FunctionMetadata, InspectorConfig, MetadataRegistry,
+    MetadataRegistryStats, ParameterMetadata, PropertyMetadata, ReplicationPolicy, TypeMetadata,
+    Validator, ValidationError, Visibility,
 };

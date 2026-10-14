@@ -81,7 +81,7 @@ impl GenerationPool {
     /// Get the next generation from the pool
     ///
     /// Returns None if the pool is exhausted.
-    pub fn next(&mut self) -> Option<HandleGeneration> {
+    pub fn next_generation(&mut self) -> Option<HandleGeneration> {
         if self.next < self.pool.len() {
             let gen = self.pool[self.next];
             self.next += 1;
@@ -92,7 +92,7 @@ impl GenerationPool {
     }
 
     /// Get the next generation, wrapping around if exhausted
-    pub fn next_wrapping(&mut self) -> HandleGeneration {
+    pub fn next_generation_wrapping(&mut self) -> HandleGeneration {
         if self.next >= self.pool.len() {
             self.next = 0;
         }
@@ -207,30 +207,30 @@ mod tests {
         assert_eq!(pool.capacity(), 10);
         assert_eq!(pool.remaining(), 10);
 
-        assert_eq!(pool.next(), Some(0));
-        assert_eq!(pool.next(), Some(1));
+        assert_eq!(pool.next_generation(), Some(0));
+        assert_eq!(pool.next_generation(), Some(1));
         assert_eq!(pool.remaining(), 8);
 
         pool.reset();
-        assert_eq!(pool.next(), Some(0));
+        assert_eq!(pool.next_generation(), Some(0));
     }
 
     #[test]
     fn test_generation_pool_exhausted() {
         let mut pool = GenerationPool::with_capacity(2);
-        assert_eq!(pool.next(), Some(0));
-        assert_eq!(pool.next(), Some(1));
-        assert_eq!(pool.next(), None);
+        assert_eq!(pool.next_generation(), Some(0));
+        assert_eq!(pool.next_generation(), Some(1));
+        assert_eq!(pool.next_generation(), None);
         assert!(pool.is_exhausted());
     }
 
     #[test]
     fn test_generation_pool_wrapping() {
         let mut pool = GenerationPool::with_capacity(3);
-        assert_eq!(pool.next_wrapping(), 0);
-        assert_eq!(pool.next_wrapping(), 1);
-        assert_eq!(pool.next_wrapping(), 2);
-        assert_eq!(pool.next_wrapping(), 0); // Wraps around
+        assert_eq!(pool.next_generation_wrapping(), 0);
+        assert_eq!(pool.next_generation_wrapping(), 1);
+        assert_eq!(pool.next_generation_wrapping(), 2);
+        assert_eq!(pool.next_generation_wrapping(), 0); // Wraps around
     }
 
     #[test]

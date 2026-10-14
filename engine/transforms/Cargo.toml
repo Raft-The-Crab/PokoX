@@ -1,0 +1,12 @@
+[package]
+name = "poko-transforms"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+poko-ids-handles = { path = "../ids-handles" }
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+glam = { version = "0.25", features = ["serde"] }

@@ -205,7 +205,7 @@ impl<T> HandleRegistry<T> {
     where
         F: FnOnce(&mut T),
     {
-        if let Some(value) = self.get_mut(handle).ok() {
+        if let Ok(value) = self.get_mut(handle) {
             f(value);
             Ok(())
         } else {
@@ -231,11 +231,9 @@ impl<T> HandleRegistry<T> {
     where
         F: Fn(&T) -> bool,
     {
-        for slot in &self.slots {
-            if let Some(value) = slot {
-                if f(value) {
-                    return true;
-                }
+        for value in self.slots.iter().flatten() {
+            if f(value) {
+                return true;
             }
         }
         false
@@ -317,6 +315,135 @@ impl<T> HandleRegistry<T> {
         }
     }
 
+    /// Batch allocate multiple values
+    ///
+    /// Returns handles for all allocated values. If allocation fails, no values are allocated.
+    pub fn allocate_batch(&mut self, values: Vec<T>) -> Result<Vec<Handle>, RegistryError> {
+        let mut handles = Vec::with_capacity(values.len());
+
+        // Check if we have enough capacity first
+        let needed = values.len().saturating_sub(self.free_count());
+        if (self.next_index as usize + needed) > MAX_HANDLES {
+            return Err(RegistryError::RegistryFull(MAX_HANDLES));
+        }
+
+        for value in values {
+            handles.push(self.allocate(value)?);
+        }
+
+        Ok(handles)
+    }
+
+    /// Iterate over all live handles with their values
+    pub fn iter(&self) -> impl Iterator<Item = (Handle, &T)> + '_ {
+        self.slots.iter().enumerate().filter_map(|(index, slot)| {
+            if let Some(value) = slot {
+                let metadata = &self.metadata[index];
+                Some((
+                    Handle::new(index as HandleIndex, metadata.generation),
+                    value,
+                ))
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Iterate over all live handles with mutable values
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (Handle, &mut T)> + '_ {
+        self.slots
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(index, slot)| {
+                if let Some(value) = slot {
+                    let metadata = self.metadata[index].clone();
+                    Some((
+                        Handle::new(index as HandleIndex, metadata.generation),
+                        value,
+                    ))
+                } else {
+                    None
+                }
+            })
+    }
+
+    /// Compact the registry by removing gaps in the slot array
+    ///
+    /// This is expensive but can reduce memory fragmentation.
+    /// After compaction, all handles become invalid.
+    /// Returns the number of slots freed.
+    pub fn compact(&mut self) -> usize
+    where
+        T: Clone,
+    {
+        if self.free_list.is_empty() {
+            return 0;
+        }
+
+        // Collect live values first
+        let live_values: Vec<T> = self
+            .slots
+            .iter()
+            .filter_map(|s| s.as_ref().cloned())
+            .collect();
+
+        let freed = self.slots.len() - live_values.len();
+
+        // Clear and reallocate
+        self.slots.clear();
+        self.metadata.clear();
+        self.free_list.clear();
+        self.next_index = 0;
+
+        for value in live_values {
+            let _ = self.allocate(value);
+        }
+
+        freed
+    }
+
+    /// Get all values as a vector (preserving order by index)
+    pub fn values(&self) -> Vec<&T> {
+        self.slots.iter().filter_map(|s| s.as_ref()).collect()
+    }
+
+    /// Get all values as a mutable vector
+    pub fn values_mut(&mut self) -> Vec<&mut T> {
+        self.slots.iter_mut().filter_map(|s| s.as_mut()).collect()
+    }
+
+    /// Clone the registry structure (handles are invalidated in the clone)
+    ///
+    /// Useful for creating snapshots or for testing.
+    pub fn clone_values(&self) -> HandleRegistry<T>
+    where
+        T: Clone,
+    {
+        let mut new_registry = HandleRegistry::with_capacity(self.len());
+        for value in self.values() {
+            let _ = new_registry.allocate(value.clone());
+        }
+        new_registry
+    }
+
+    /// Get diagnostic information about the registry
+    pub fn diagnostics(&self) -> RegistryDiagnostics {
+        let fragmentation_ratio = if self.slots.is_empty() {
+            0.0
+        } else {
+            self.free_count() as f64 / self.slots.len() as f64
+        };
+
+        RegistryDiagnostics {
+            total_slots: self.slots.len(),
+            live_count: self.len(),
+            free_count: self.free_count(),
+            fragmentation_ratio,
+            next_index: self.next_index,
+            max_index: self.slots.len() as HandleIndex,
+        }
+    }
+
     /// Validate a handle and check if it's live
     fn validate_handle(&self, handle: Handle) -> Result<(), RegistryError> {
         let index = handle.index() as usize;
@@ -343,6 +470,17 @@ impl<T> HandleRegistry<T> {
 
         Ok(())
     }
+}
+
+/// Detailed diagnostics about a HandleRegistry
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RegistryDiagnostics {
+    pub total_slots: usize,
+    pub live_count: usize,
+    pub free_count: usize,
+    pub fragmentation_ratio: f64,
+    pub next_index: HandleIndex,
+    pub max_index: HandleIndex,
 }
 
 /// Statistics about a HandleRegistry
@@ -652,15 +790,149 @@ mod tests {
         let mut registry = HandleRegistry::new();
         let h1 = registry.allocate(42).unwrap();
         let h2 = registry.allocate(99).unwrap();
-        let h3 = registry.allocate(42).unwrap();
+        let h3 = registry.allocate(100).unwrap();
 
-        let removed = registry.retain(|&v| v == 42);
+        let removed = registry.retain(|&v| v > 50);
         assert_eq!(removed.len(), 1);
-        assert!(removed.contains(&h2));
-
-        assert!(registry.is_valid(h1));
-        assert!(!registry.is_valid(h2));
+        assert!(removed.contains(&h1));
+        assert!(!registry.is_valid(h1));
+        assert!(registry.is_valid(h2));
         assert!(registry.is_valid(h3));
+    }
+
+    #[test]
+    fn test_allocate_batch() {
+        let mut registry = HandleRegistry::new();
+        let values = vec![1, 2, 3, 4, 5];
+        let handles = registry.allocate_batch(values).unwrap();
+        assert_eq!(handles.len(), 5);
+        for (i, handle) in handles.iter().enumerate() {
+            assert_eq!(registry.get(*handle), Ok(&(i as i32 + 1)));
+        }
+    }
+
+    #[test]
+    fn test_allocate_batch_full() {
+        let mut registry = HandleRegistry::new();
+        registry.next_index = u16::MAX - 1;
+        let values = vec![1, 2, 3];
+        let result = registry.allocate_batch(values);
+        assert!(matches!(result, Err(RegistryError::RegistryFull(_))));
+    }
+
+    #[test]
+    fn test_iter() {
+        let mut registry = HandleRegistry::new();
+        let _h1 = registry.allocate(1).unwrap();
+        let _h2 = registry.allocate(2).unwrap();
+
+        let mut collected = Vec::new();
+        for (handle, value) in registry.iter() {
+            collected.push((handle, *value));
+        }
+        assert_eq!(collected.len(), 2);
+    }
+
+    #[test]
+    fn test_iter_mut() {
+        let mut registry = HandleRegistry::new();
+        let h1 = registry.allocate(1).unwrap();
+        let h2 = registry.allocate(2).unwrap();
+
+        for (_handle, value) in registry.iter_mut() {
+            *value *= 2;
+        }
+
+        assert_eq!(registry.get(h1), Ok(&2));
+        assert_eq!(registry.get(h2), Ok(&4));
+    }
+
+    #[test]
+    fn test_compact() {
+        let mut registry = HandleRegistry::new();
+        let _h1 = registry.allocate(1).unwrap();
+        let h2 = registry.allocate(2).unwrap();
+        let _h3 = registry.allocate(3).unwrap();
+
+        registry.remove(h2).unwrap();
+        assert_eq!(registry.free_count(), 1);
+
+        let freed = registry.compact();
+        assert_eq!(freed, 1);
+        assert_eq!(registry.free_count(), 0);
+        assert_eq!(registry.len(), 2);
+    }
+
+    #[test]
+    fn test_compact_no_gaps() {
+        let mut registry = HandleRegistry::new();
+        registry.allocate(1).unwrap();
+        registry.allocate(2).unwrap();
+
+        let freed = registry.compact();
+        assert_eq!(freed, 0);
+    }
+
+    #[test]
+    fn test_values() {
+        let mut registry = HandleRegistry::new();
+        registry.allocate(1).unwrap();
+        registry.allocate(2).unwrap();
+        registry.allocate(3).unwrap();
+
+        let values = registry.values();
+        assert_eq!(values.len(), 3);
+    }
+
+    #[test]
+    fn test_values_mut() {
+        let mut registry = HandleRegistry::new();
+        let h1 = registry.allocate(1).unwrap();
+        let h2 = registry.allocate(2).unwrap();
+
+        for value in registry.values_mut() {
+            *value *= 2;
+        }
+
+        assert_eq!(registry.get(h1), Ok(&2));
+        assert_eq!(registry.get(h2), Ok(&4));
+    }
+
+    #[test]
+    fn test_clone_values() {
+        let mut registry1 = HandleRegistry::new();
+        let h1 = registry1.allocate(42).unwrap();
+        let h2 = registry1.allocate(99).unwrap();
+
+        let registry2 = registry1.clone_values();
+
+        // Values should be the same
+        let values1: Vec<_> = registry1.values().into_iter().cloned().collect();
+        let values2: Vec<_> = registry2.values().into_iter().cloned().collect();
+        assert_eq!(values1, values2);
+
+        // Both registries should have the same number of items
+        assert_eq!(registry1.len(), registry2.len());
+        assert_eq!(registry2.len(), 2);
+
+        // Both should have the values accessible
+        assert_eq!(registry1.get(h1), Ok(&42));
+        assert_eq!(registry1.get(h2), Ok(&99));
+    }
+
+    #[test]
+    fn test_diagnostics() {
+        let mut registry = HandleRegistry::new();
+        registry.allocate(1).unwrap();
+        registry.allocate(2).unwrap();
+        let h3 = registry.allocate(3).unwrap();
+        registry.remove(h3).unwrap();
+
+        let diag = registry.diagnostics();
+        assert_eq!(diag.total_slots, 3);
+        assert_eq!(diag.live_count, 2);
+        assert_eq!(diag.free_count, 1);
+        assert!((diag.fragmentation_ratio - 0.333).abs() < 0.01);
     }
 
     #[test]
