@@ -1,0 +1,16 @@
+[workspace]
+members = [
+    "engine/core",
+    "engine/ids-handles",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+license = "Proprietary"
+authors = ["Poko Team"]
+
+[workspace.dependencies]
+# Internal crates will be added here as they are created
