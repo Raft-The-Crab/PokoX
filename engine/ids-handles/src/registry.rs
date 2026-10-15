@@ -33,9 +33,6 @@ impl RegistryConfig {
         if self.max_capacity > MAX_HANDLES {
             return Err(RegistryError::RegistryFull(MAX_HANDLES));
         }
-        if self.max_capacity == 0 {
-            return Err(RegistryError::InvalidIndex(0, 0));
-        }
         Ok(())
     }
 }
@@ -820,7 +817,7 @@ mod tests {
             max_capacity: 0,
             ..Default::default()
         };
-        assert!(config.validate().is_err());
+        assert!(config.validate().is_ok()); // 0 means unlimited
 
         let config = RegistryConfig {
             max_capacity: MAX_HANDLES + 1,

@@ -32,6 +32,48 @@ pub use properties::{
 pub use types::{TypeMetadata, Visibility};
 pub use validation::{validate_metadata, ValidationError};
 
+/// Configuration for the metadata registry
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MetadataRegistryConfig {
+    /// Whether to allow duplicate IDs (should be false in production)
+    pub allow_duplicates: bool,
+    /// Whether to enable strict validation
+    pub strict_validation: bool,
+    /// Maximum number of types (0 = no limit)
+    pub max_types: usize,
+    /// Maximum number of properties (0 = no limit)
+    pub max_properties: usize,
+    /// Maximum number of functions (0 = no limit)
+    pub max_functions: usize,
+    /// Maximum number of events (0 = no limit)
+    pub max_events: usize,
+}
+
+impl Default for MetadataRegistryConfig {
+    fn default() -> Self {
+        Self {
+            allow_duplicates: false,
+            strict_validation: true,
+            max_types: 0,
+            max_properties: 0,
+            max_functions: 0,
+            max_events: 0,
+        }
+    }
+}
+
+impl MetadataRegistryConfig {
+    /// Validate the configuration
+    pub fn validate(&self) -> Result<(), ValidationError> {
+        if self.allow_duplicates && self.strict_validation {
+            return Err(ValidationError::InvalidConfig(
+                "allow_duplicates and strict_validation are mutually exclusive".to_string(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Central metadata registry
 #[derive(Serialize, Deserialize)]
 pub struct MetadataRegistry {
@@ -43,31 +85,65 @@ pub struct MetadataRegistry {
     functions: HashMap<String, FunctionMetadata>,
     /// Event metadata indexed by ID
     events: HashMap<String, EventMetadata>,
+    /// Configuration (not serialized)
+    #[serde(skip, default = "MetadataRegistryConfig::default")]
+    config: MetadataRegistryConfig,
+    /// Statistics (not serialized)
+    #[serde(skip, default = "default_stats")]
+    stats: MetadataRegistryStats,
+}
+
+fn default_stats() -> MetadataRegistryStats {
+    MetadataRegistryStats {
+        type_count: 0,
+        property_count: 0,
+        function_count: 0,
+        event_count: 0,
+    }
 }
 
 impl Default for MetadataRegistry {
     fn default() -> Self {
-        Self::new()
+        Self::with_config(MetadataRegistryConfig::default())
     }
 }
 
 impl MetadataRegistry {
     /// Create a new empty registry
     pub fn new() -> Self {
+        Self::with_config(MetadataRegistryConfig::default())
+    }
+
+    /// Create a new registry with configuration
+    pub fn with_config(config: MetadataRegistryConfig) -> Self {
+        config.validate().unwrap();
         Self {
             types: HashMap::new(),
             properties: HashMap::new(),
             functions: HashMap::new(),
             events: HashMap::new(),
+            config,
+            stats: MetadataRegistryStats {
+                type_count: 0,
+                property_count: 0,
+                function_count: 0,
+                event_count: 0,
+            },
         }
     }
 
     /// Register a type
     pub fn register_type(&mut self, type_meta: TypeMetadata) -> Result<(), ValidationError> {
-        if self.types.contains_key(&type_meta.id) {
+        if !self.config.allow_duplicates && self.types.contains_key(&type_meta.id) {
             return Err(ValidationError::DuplicateId(type_meta.id));
         }
+        if self.config.max_types > 0 && self.types.len() >= self.config.max_types {
+            return Err(ValidationError::ValidationFailed(
+                "Maximum type count reached".to_string(),
+            ));
+        }
         self.types.insert(type_meta.id.clone(), type_meta);
+        self.stats.type_count = self.types.len();
         Ok(())
     }
 
@@ -84,10 +160,16 @@ impl MetadataRegistry {
         &mut self,
         prop_meta: PropertyMetadata,
     ) -> Result<(), ValidationError> {
-        if self.properties.contains_key(&prop_meta.id) {
+        if !self.config.allow_duplicates && self.properties.contains_key(&prop_meta.id) {
             return Err(ValidationError::DuplicateId(prop_meta.id));
         }
+        if self.config.max_properties > 0 && self.properties.len() >= self.config.max_properties {
+            return Err(ValidationError::ValidationFailed(
+                "Maximum property count reached".to_string(),
+            ));
+        }
         self.properties.insert(prop_meta.id.clone(), prop_meta);
+        self.stats.property_count = self.properties.len();
         Ok(())
     }
 
@@ -107,10 +189,16 @@ impl MetadataRegistry {
         &mut self,
         func_meta: FunctionMetadata,
     ) -> Result<(), ValidationError> {
-        if self.functions.contains_key(&func_meta.id) {
+        if !self.config.allow_duplicates && self.functions.contains_key(&func_meta.id) {
             return Err(ValidationError::DuplicateId(func_meta.id));
         }
+        if self.config.max_functions > 0 && self.functions.len() >= self.config.max_functions {
+            return Err(ValidationError::ValidationFailed(
+                "Maximum function count reached".to_string(),
+            ));
+        }
         self.functions.insert(func_meta.id.clone(), func_meta);
+        self.stats.function_count = self.functions.len();
         Ok(())
     }
 
@@ -127,10 +215,16 @@ impl MetadataRegistry {
 
     /// Register an event
     pub fn register_event(&mut self, event_meta: EventMetadata) -> Result<(), ValidationError> {
-        if self.events.contains_key(&event_meta.id) {
+        if !self.config.allow_duplicates && self.events.contains_key(&event_meta.id) {
             return Err(ValidationError::DuplicateId(event_meta.id));
         }
+        if self.config.max_events > 0 && self.events.len() >= self.config.max_events {
+            return Err(ValidationError::ValidationFailed(
+                "Maximum event count reached".to_string(),
+            ));
+        }
         self.events.insert(event_meta.id.clone(), event_meta);
+        self.stats.event_count = self.events.len();
         Ok(())
     }
 
@@ -279,22 +373,30 @@ impl MetadataRegistry {
 
     /// Remove a type
     pub fn remove_type(&mut self, type_id: &str) -> Option<TypeMetadata> {
-        self.types.remove(type_id)
+        let result = self.types.remove(type_id);
+        self.stats.type_count = self.types.len();
+        result
     }
 
     /// Remove a property
     pub fn remove_property(&mut self, prop_id: &str) -> Option<PropertyMetadata> {
-        self.properties.remove(prop_id)
+        let result = self.properties.remove(prop_id);
+        self.stats.property_count = self.properties.len();
+        result
     }
 
     /// Remove a function
     pub fn remove_function(&mut self, func_id: &str) -> Option<FunctionMetadata> {
-        self.functions.remove(func_id)
+        let result = self.functions.remove(func_id);
+        self.stats.function_count = self.functions.len();
+        result
     }
 
     /// Remove an event
     pub fn remove_event(&mut self, event_id: &str) -> Option<EventMetadata> {
-        self.events.remove(event_id)
+        let result = self.events.remove(event_id);
+        self.stats.event_count = self.events.len();
+        result
     }
 
     /// Clear all metadata
@@ -303,10 +405,19 @@ impl MetadataRegistry {
         self.properties.clear();
         self.functions.clear();
         self.events.clear();
+        self.stats = MetadataRegistryStats {
+            type_count: 0,
+            property_count: 0,
+            function_count: 0,
+            event_count: 0,
+        };
     }
 
     /// Validate all registered metadata
     pub fn validate(&self) -> Result<(), ValidationError> {
+        if !self.config.strict_validation {
+            return Ok(());
+        }
         let types: Vec<_> = self.types.values().cloned().collect();
         let properties: Vec<_> = self.properties.values().cloned().collect();
         let functions: Vec<_> = self.functions.values().cloned().collect();
@@ -316,13 +427,13 @@ impl MetadataRegistry {
     }
 
     /// Get registry statistics
-    pub fn stats(&self) -> MetadataRegistryStats {
-        MetadataRegistryStats {
-            type_count: self.types.len(),
-            property_count: self.properties.len(),
-            function_count: self.functions.len(),
-            event_count: self.events.len(),
-        }
+    pub fn stats(&self) -> &MetadataRegistryStats {
+        &self.stats
+    }
+
+    /// Get the configuration
+    pub fn config(&self) -> &MetadataRegistryConfig {
+        &self.config
     }
 
     /// Serialize the registry to JSON
@@ -332,18 +443,24 @@ impl MetadataRegistry {
 
     /// Deserialize the registry from JSON
     pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
-        serde_json::from_str(json)
+        let mut registry: Self = serde_json::from_str(json)?;
+        // Recalculate stats after deserialization
+        registry.stats.type_count = registry.types.len();
+        registry.stats.property_count = registry.properties.len();
+        registry.stats.function_count = registry.functions.len();
+        registry.stats.event_count = registry.events.len();
+        Ok(registry)
     }
 
     /// Create registry with predefined core types
     pub fn with_core_types() -> Self {
         let mut registry = Self::new();
-        registry.register_core_types();
+        let _ = registry.register_core_types();
         registry
     }
 
     /// Register core engine types (Workspace, Model, Part)
-    pub fn register_core_types(&mut self) {
+    pub fn register_core_types(&mut self) -> Result<(), ValidationError> {
         // Workspace type
         let workspace = TypeMetadata::new("Workspace".to_string(), "Workspace".to_string())
             .with_property("name".to_string())
@@ -375,9 +492,9 @@ impl MetadataRegistry {
             .with_visibility(Visibility::Public)
             .with_docs("Basic 3D object with transform and appearance".to_string());
 
-        let _ = self.register_type(workspace);
-        let _ = self.register_type(model);
-        let _ = self.register_type(part);
+        self.register_type(workspace)?;
+        self.register_type(model)?;
+        self.register_type(part)?;
 
         // Core properties
         let name_prop = PropertyMetadata::new("name".to_string(), DataType::String)
@@ -477,15 +594,17 @@ impl MetadataRegistry {
                         .with_category("Metadata".to_string()),
                 );
 
-        let _ = self.register_property(name_prop);
-        let _ = self.register_property(parent_prop);
-        let _ = self.register_property(position_prop);
-        let _ = self.register_property(rotation_prop);
-        let _ = self.register_property(scale_prop);
-        let _ = self.register_property(size_prop);
-        let _ = self.register_property(color_prop);
-        let _ = self.register_property(created_at_prop);
-        let _ = self.register_property(modified_at_prop);
+        self.register_property(name_prop)?;
+        self.register_property(parent_prop)?;
+        self.register_property(position_prop)?;
+        self.register_property(rotation_prop)?;
+        self.register_property(scale_prop)?;
+        self.register_property(size_prop)?;
+        self.register_property(color_prop)?;
+        self.register_property(created_at_prop)?;
+        self.register_property(modified_at_prop)?;
+
+        Ok(())
     }
 }
 
@@ -650,7 +769,8 @@ mod tests {
 
     #[test]
     fn test_core_types_registration() {
-        let registry = MetadataRegistry::with_core_types();
+        let mut registry = MetadataRegistry::new();
+        assert!(registry.register_core_types().is_ok());
 
         assert!(registry.has_type("Workspace"));
         assert!(registry.has_type("Model"));
@@ -668,5 +788,70 @@ mod tests {
 
         assert_eq!(registry.stats().type_count, 3);
         assert_eq!(registry.stats().property_count, 9);
+    }
+
+    #[test]
+    fn test_registry_config() {
+        let config = MetadataRegistryConfig::default();
+        assert!(!config.allow_duplicates);
+        assert!(config.strict_validation);
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_registry_config_validation() {
+        let config = MetadataRegistryConfig {
+            allow_duplicates: true,
+            strict_validation: true,
+            ..Default::default()
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_registry_with_config() {
+        let config = MetadataRegistryConfig {
+            max_types: 10,
+            ..Default::default()
+        };
+        let registry = MetadataRegistry::with_config(config);
+        assert_eq!(registry.config().max_types, 10);
+    }
+
+    #[test]
+    fn test_max_capacity_enforcement() {
+        let config = MetadataRegistryConfig {
+            max_types: 2,
+            ..Default::default()
+        };
+        let mut registry = MetadataRegistry::with_config(config);
+
+        registry
+            .register_type(TypeMetadata::new("Type1".to_string(), "Type 1".to_string()))
+            .unwrap();
+        registry
+            .register_type(TypeMetadata::new("Type2".to_string(), "Type 2".to_string()))
+            .unwrap();
+
+        let result = registry.register_type(TypeMetadata::new(
+            "Type3".to_string(),
+            "Type 3".to_string(),
+        ));
+        assert!(matches!(result, Err(ValidationError::ValidationFailed(_))));
+    }
+
+    #[test]
+    fn test_stats_tracking() {
+        let mut registry = MetadataRegistry::new();
+        registry
+            .register_type(TypeMetadata::new("Type1".to_string(), "Type 1".to_string()))
+            .unwrap();
+        registry
+            .register_property(PropertyMetadata::new("Prop1".to_string(), DataType::F32))
+            .unwrap();
+
+        let stats = registry.stats();
+        assert_eq!(stats.type_count, 1);
+        assert_eq!(stats.property_count, 1);
     }
 }

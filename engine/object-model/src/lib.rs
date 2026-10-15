@@ -7,11 +7,55 @@
 //! - Integration with the IDs/handles system
 
 use glam::{Mat4, Quat, Vec3};
-use poko_ids_handles::{Handle, HandleRegistry, Id, IdType, RegistryError, RegistryStats};
-use poko_transforms::{Transform, TransformRegistry};
+use poko_ids_handles::{Handle, HandleRegistry, Id, IdType, RegistryConfig, RegistryError, RegistryStats};
+use poko_transforms::{Transform, TransformRegistry, TransformRegistryConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
+
+/// Configuration for the object registry
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ObjectRegistryConfig {
+    /// Maximum number of objects (0 = no limit)
+    pub max_objects: usize,
+    /// Maximum undo stack depth
+    pub max_undo_depth: usize,
+    /// Whether to enable statistics tracking
+    pub enable_stats: bool,
+}
+
+impl Default for ObjectRegistryConfig {
+    fn default() -> Self {
+        Self {
+            max_objects: 0,
+            max_undo_depth: 100,
+            enable_stats: true,
+        }
+    }
+}
+
+impl ObjectRegistryConfig {
+    /// Validate the configuration
+    pub fn validate(&self) -> Result<(), ObjectModelError> {
+        if self.max_undo_depth == 0 {
+            return Err(ObjectModelError::InvalidOperation(
+                "max_undo_depth must be at least 1".to_string(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// Registry statistics
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ObjectRegistryStats {
+    pub total_objects: usize,
+    pub workspace_count: usize,
+    pub model_count: usize,
+    pub part_count: usize,
+    pub undo_stack_size: usize,
+    pub redo_stack_size: usize,
+}
 
 /// Errors that can occur in the object model
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -279,8 +323,10 @@ pub struct ObjectRegistry {
     undo_stack: Vec<RegistrySnapshot>,
     /// Redo stack for undone operations
     redo_stack: Vec<RegistrySnapshot>,
-    /// Maximum undo stack size
-    max_undo_depth: usize,
+    /// Configuration
+    config: ObjectRegistryConfig,
+    /// Statistics
+    stats: ObjectRegistryStats,
 }
 
 /// Snapshot of registry state for undo/redo
@@ -293,28 +339,61 @@ struct RegistrySnapshot {
 impl ObjectRegistry {
     /// Create a new object registry
     pub fn new() -> Self {
+        Self::with_config(ObjectRegistryConfig::default())
+    }
+
+    /// Create a new object registry with configuration
+    pub fn with_config(config: ObjectRegistryConfig) -> Self {
+        config.validate().unwrap();
+        let handle_config = if config.max_objects > 0 {
+            RegistryConfig {
+                max_capacity: config.max_objects,
+                enable_stats: config.enable_stats,
+            }
+        } else {
+            RegistryConfig {
+                max_capacity: u16::MAX as usize,
+                enable_stats: config.enable_stats,
+            }
+        };
+        let transform_config = if config.max_objects > 0 {
+            TransformRegistryConfig {
+                max_transforms: config.max_objects,
+                enable_stats: config.enable_stats,
+                auto_update: true,
+            }
+        } else {
+            TransformRegistryConfig {
+                max_transforms: 0,
+                enable_stats: config.enable_stats,
+                auto_update: true,
+            }
+        };
         Self {
-            objects: HandleRegistry::new(),
+            objects: HandleRegistry::with_config(handle_config),
             id_to_handle: HashMap::new(),
             event_listeners: Vec::new(),
-            transforms: TransformRegistry::new(),
+            transforms: TransformRegistry::with_config(transform_config),
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
-            max_undo_depth: 100,
+            config,
+            stats: ObjectRegistryStats {
+                total_objects: 0,
+                workspace_count: 0,
+                model_count: 0,
+                part_count: 0,
+                undo_stack_size: 0,
+                redo_stack_size: 0,
+            },
         }
     }
 
     /// Create a new object registry with custom undo depth
     pub fn with_undo_depth(max_undo_depth: usize) -> Self {
-        Self {
-            objects: HandleRegistry::new(),
-            id_to_handle: HashMap::new(),
-            event_listeners: Vec::new(),
-            transforms: TransformRegistry::new(),
-            undo_stack: Vec::new(),
-            redo_stack: Vec::new(),
+        Self::with_config(ObjectRegistryConfig {
             max_undo_depth,
-        }
+            ..Default::default()
+        })
     }
 
     /// Create a new workspace
@@ -332,6 +411,7 @@ impl ObjectRegistry {
                 self.id_to_handle.insert(id, handle);
                 self.transforms.add(id, Transform::identity()).ok();
                 self.emit_event(LifecycleEvent::Created { id });
+                self.update_stats();
             }
         }
 
@@ -372,6 +452,7 @@ impl ObjectRegistry {
 
                 self.transforms.add(id, Transform::identity()).ok();
                 self.emit_event(LifecycleEvent::Created { id });
+                self.update_stats();
             }
         }
 
@@ -412,6 +493,7 @@ impl ObjectRegistry {
 
                 self.transforms.add(id, Transform::identity()).ok();
                 self.emit_event(LifecycleEvent::Created { id });
+                self.update_stats();
             }
         }
 
@@ -563,6 +645,7 @@ impl ObjectRegistry {
         self.transforms.remove(id).ok();
 
         self.emit_event(LifecycleEvent::Destroyed { id });
+        self.update_stats();
 
         Ok(())
     }
@@ -604,6 +687,41 @@ impl ObjectRegistry {
     /// Get registry statistics
     pub fn stats(&self) -> RegistryStats {
         self.objects.stats().clone()
+    }
+
+    /// Get detailed registry statistics
+    pub fn get_detailed_stats(&self) -> ObjectRegistryStats {
+        self.stats.clone()
+    }
+
+    /// Get the configuration
+    pub fn config(&self) -> &ObjectRegistryConfig {
+        &self.config
+    }
+
+    /// Update statistics based on current state
+    fn update_stats(&mut self) {
+        self.stats.total_objects = self.objects.len();
+        self.stats.workspace_count = self
+            .objects
+            .values()
+            .iter()
+            .filter(|o| matches!(o, Object::Workspace(_)))
+            .count();
+        self.stats.model_count = self
+            .objects
+            .values()
+            .iter()
+            .filter(|o| matches!(o, Object::Model(_)))
+            .count();
+        self.stats.part_count = self
+            .objects
+            .values()
+            .iter()
+            .filter(|o| matches!(o, Object::Part(_)))
+            .count();
+        self.stats.undo_stack_size = self.undo_stack.len();
+        self.stats.redo_stack_size = self.redo_stack.len();
     }
 
     /// Get the depth of an object in the hierarchy (0 for workspace)
@@ -1259,10 +1377,12 @@ impl ObjectRegistry {
         let snapshot = self.create_snapshot()?;
         self.undo_stack.push(snapshot);
         self.redo_stack.clear(); // Clear redo stack on new action
-                                 // Enforce max undo depth
-        if self.undo_stack.len() > self.max_undo_depth {
+        // Enforce max undo depth
+        if self.undo_stack.len() > self.config.max_undo_depth {
             self.undo_stack.remove(0);
         }
+        self.stats.undo_stack_size = self.undo_stack.len();
+        self.stats.redo_stack_size = self.redo_stack.len();
         Ok(())
     }
 
@@ -1277,6 +1397,8 @@ impl ObjectRegistry {
         self.redo_stack.push(current_snapshot);
         // Restore from snapshot
         self.restore_from_snapshot(snapshot)?;
+        self.stats.undo_stack_size = self.undo_stack.len();
+        self.stats.redo_stack_size = self.redo_stack.len();
         Ok(())
     }
 
@@ -1291,6 +1413,8 @@ impl ObjectRegistry {
         self.undo_stack.push(current_snapshot);
         // Restore from snapshot
         self.restore_from_snapshot(snapshot)?;
+        self.stats.undo_stack_size = self.undo_stack.len();
+        self.stats.redo_stack_size = self.redo_stack.len();
         Ok(())
     }
 
@@ -1352,9 +1476,9 @@ impl ObjectRegistry {
 
     /// Set the maximum undo depth
     pub fn set_max_undo_depth(&mut self, depth: usize) {
-        self.max_undo_depth = depth;
+        self.config.max_undo_depth = depth;
         // Trim if necessary
-        while self.undo_stack.len() > self.max_undo_depth {
+        while self.undo_stack.len() > self.config.max_undo_depth {
             self.undo_stack.remove(0);
         }
     }
@@ -1531,7 +1655,7 @@ impl ObjectRegistry {
     }
 
     /// Get statistics about the hierarchy
-    pub fn get_detailed_stats(&self) -> DetailedRegistryStats {
+    pub fn get_hierarchy_stats(&self) -> DetailedRegistryStats {
         let basic = self.get_stats();
         let leaf_count = self.get_leaf_objects().len();
         let max_depth = self.get_max_depth();
@@ -2630,7 +2754,7 @@ mod tests {
             .create_part(model.data.id, "TestPart".to_string())
             .unwrap();
 
-        let stats = registry.get_detailed_stats();
+        let stats = registry.get_hierarchy_stats();
         assert_eq!(stats.total_objects, 3);
         assert_eq!(stats.leaf_count, 1);
         assert_eq!(stats.max_depth, 2);
@@ -2671,5 +2795,69 @@ mod tests {
 
         let count = registry.count_subtree(model.data.id).unwrap();
         assert_eq!(count, 3); // model + 2 parts
+    }
+
+    #[test]
+    fn test_registry_config() {
+        let config = ObjectRegistryConfig::default();
+        assert_eq!(config.max_undo_depth, 100);
+        assert!(config.enable_stats);
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_registry_config_validation() {
+        let config = ObjectRegistryConfig {
+            max_undo_depth: 0,
+            ..Default::default()
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_registry_with_config() {
+        let config = ObjectRegistryConfig {
+            max_undo_depth: 50,
+            ..Default::default()
+        };
+        let registry = ObjectRegistry::with_config(config);
+        assert_eq!(registry.config().max_undo_depth, 50);
+    }
+
+    #[test]
+    fn test_detailed_stats() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+        let model = registry
+            .create_model(workspace.data.id, "TestModel".to_string())
+            .unwrap();
+        let _part = registry
+            .create_part(model.data.id, "TestPart".to_string())
+            .unwrap();
+
+        let stats = registry.get_detailed_stats();
+        assert_eq!(stats.total_objects, 3);
+        assert_eq!(stats.workspace_count, 1);
+        assert_eq!(stats.model_count, 1);
+        assert_eq!(stats.part_count, 1);
+    }
+
+    #[test]
+    fn test_stats_tracking() {
+        let mut registry = ObjectRegistry::new();
+        let workspace = registry
+            .create_workspace("TestWorkspace".to_string())
+            .unwrap();
+
+        let stats = registry.get_detailed_stats();
+        assert_eq!(stats.total_objects, 1);
+        assert_eq!(stats.workspace_count, 1);
+
+        registry.destroy(workspace.data.id).unwrap();
+
+        let stats = registry.get_detailed_stats();
+        assert_eq!(stats.total_objects, 0);
     }
 }

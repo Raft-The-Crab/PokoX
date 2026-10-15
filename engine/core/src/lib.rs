@@ -10,7 +10,8 @@ pub use poko_ids_handles::{
 
 pub use poko_object_model::{
     DetailedRegistryStats, LifecycleEvent, Model, Object, ObjectData, ObjectModelError,
-    ObjectRegistry, ObjectType, Part, RegistryStatistics, Workspace,
+    ObjectRegistry, ObjectRegistryConfig, ObjectRegistryStats, ObjectType, Part, RegistryStatistics,
+    Workspace,
 };
 
 pub use poko_transforms::{Transform, TransformError, TransformRegistry, TransformRegistryConfig, TransformRegistryStats};

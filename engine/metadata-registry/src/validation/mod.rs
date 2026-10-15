@@ -28,6 +28,8 @@ pub enum ValidationError {
     InvalidDefaultValue { data_type: String, reason: String },
     #[error("Inconsistent metadata: {0}")]
     InconsistentMetadata(String),
+    #[error("Invalid configuration: {0}")]
+    InvalidConfig(String),
 }
 
 /// Validate a complete set of metadata
