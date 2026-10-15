@@ -12,6 +12,50 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
+/// Configuration for the transform registry
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TransformRegistryConfig {
+    /// Maximum number of transforms (0 = no limit)
+    pub max_transforms: usize,
+    /// Whether to enable statistics tracking
+    pub enable_stats: bool,
+    /// Whether to automatically update dirty transforms on get
+    pub auto_update: bool,
+}
+
+impl Default for TransformRegistryConfig {
+    fn default() -> Self {
+        Self {
+            max_transforms: 0,
+            enable_stats: true,
+            auto_update: true,
+        }
+    }
+}
+
+impl TransformRegistryConfig {
+    /// Validate the configuration
+    pub fn validate(&self) -> Result<(), TransformError> {
+        if self.max_transforms > 0 && self.max_transforms < 1 {
+            return Err(TransformError::InvalidTransform(
+                "max_transforms must be at least 1 if set".to_string(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// Transform registry statistics
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransformRegistryStats {
+    pub total_transforms: usize,
+    pub dirty_count: usize,
+    pub version: u64,
+    pub updates_count: u64,
+    pub adds_count: u64,
+    pub removes_count: u64,
+}
+
 /// Errors that can occur in transform operations
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum TransformError {
@@ -343,6 +387,10 @@ pub struct TransformRegistry {
     parent_matrices: HashMap<Id, Mat4>,
     /// Transform update version for tracking changes
     version: u64,
+    /// Configuration
+    config: TransformRegistryConfig,
+    /// Statistics
+    stats: TransformRegistryStats,
 }
 
 impl Default for TransformRegistry {
@@ -354,38 +402,70 @@ impl Default for TransformRegistry {
 impl TransformRegistry {
     /// Create a new transform registry
     pub fn new() -> Self {
+        Self::with_config(TransformRegistryConfig::default())
+    }
+
+    /// Create a new transform registry with configuration
+    pub fn with_config(config: TransformRegistryConfig) -> Self {
+        config.validate().unwrap();
         Self {
             transforms: HashMap::new(),
             parent_matrices: HashMap::new(),
             version: 0,
+            config,
+            stats: TransformRegistryStats {
+                total_transforms: 0,
+                dirty_count: 0,
+                version: 0,
+                updates_count: 0,
+                adds_count: 0,
+                removes_count: 0,
+            },
         }
     }
 
     /// Create a new transform registry with pre-allocated capacity
     pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            transforms: HashMap::with_capacity(capacity),
-            parent_matrices: HashMap::with_capacity(capacity),
-            version: 0,
-        }
+        let config = TransformRegistryConfig {
+            max_transforms: capacity,
+            ..Default::default()
+        };
+        Self::with_config(config)
     }
 
     /// Add a transform for an object
     pub fn add(&mut self, id: Id, transform: Transform) -> Result<(), TransformError> {
+        if self.config.max_transforms > 0 && self.transforms.len() >= self.config.max_transforms {
+            return Err(TransformError::InvalidTransform(
+                "Registry is at maximum capacity".to_string(),
+            ));
+        }
+        let is_dirty = transform.is_dirty();
         self.transforms.insert(id, transform);
         self.parent_matrices.insert(id, Mat4::IDENTITY);
         self.increment_version();
+        self.stats.total_transforms = self.transforms.len();
+        self.stats.adds_count += 1;
+        if is_dirty {
+            self.stats.dirty_count += 1;
+        }
         Ok(())
     }
 
     /// Remove a transform
     pub fn remove(&mut self, id: Id) -> Result<Transform, TransformError> {
+        let was_dirty = self.transforms.get(&id).map(|t| t.is_dirty()).unwrap_or(false);
         self.parent_matrices.remove(&id);
         let result = self
             .transforms
             .remove(&id)
             .ok_or(TransformError::TransformNotFound(id))?;
         self.increment_version();
+        self.stats.total_transforms = self.transforms.len();
+        self.stats.removes_count += 1;
+        if was_dirty {
+            self.stats.dirty_count = self.stats.dirty_count.saturating_sub(1);
+        }
         Ok(result)
     }
 
@@ -419,6 +499,7 @@ impl TransformRegistry {
 
     /// Update world transforms for dirty objects
     pub fn update_dirty_transforms(&mut self) {
+        let mut dirty_count = 0;
         for (id, transform) in self.transforms.iter_mut() {
             if transform.is_dirty() {
                 let parent_matrix = self
@@ -427,18 +508,27 @@ impl TransformRegistry {
                     .copied()
                     .unwrap_or(Mat4::IDENTITY);
                 transform.recalculate_world_matrix(parent_matrix);
+                dirty_count += 1;
             }
         }
+        self.stats.dirty_count = dirty_count;
+        self.stats.updates_count += 1;
     }
 
     /// Mark a transform and all its children as dirty
     pub fn mark_subtree_dirty(&mut self, id: Id, children: &[Id]) {
         if let Some(transform) = self.transforms.get_mut(&id) {
-            transform.mark_dirty();
+            if !transform.is_dirty() {
+                transform.mark_dirty();
+                self.stats.dirty_count += 1;
+            }
         }
         for child_id in children {
             if let Some(transform) = self.transforms.get_mut(child_id) {
-                transform.mark_dirty();
+                if !transform.is_dirty() {
+                    transform.mark_dirty();
+                    self.stats.dirty_count += 1;
+                }
             }
         }
     }
@@ -458,6 +548,14 @@ impl TransformRegistry {
         self.transforms.clear();
         self.parent_matrices.clear();
         self.version = 0;
+        self.stats = TransformRegistryStats {
+            total_transforms: 0,
+            dirty_count: 0,
+            version: 0,
+            updates_count: 0,
+            adds_count: 0,
+            removes_count: 0,
+        };
     }
 
     /// Get the current version (increments on modifications)
@@ -465,9 +563,20 @@ impl TransformRegistry {
         self.version
     }
 
+    /// Get registry statistics
+    pub fn stats(&self) -> &TransformRegistryStats {
+        &self.stats
+    }
+
+    /// Get the configuration
+    pub fn config(&self) -> &TransformRegistryConfig {
+        &self.config
+    }
+
     /// Increment the version number
     fn increment_version(&mut self) {
         self.version = self.version.wrapping_add(1);
+        self.stats.version = self.version;
     }
 
     /// Set transform for an object (replaces existing)
@@ -475,8 +584,15 @@ impl TransformRegistry {
         if !self.transforms.contains_key(&id) {
             return Err(TransformError::TransformNotFound(id));
         }
+        let was_dirty = self.transforms.get(&id).map(|t| t.is_dirty()).unwrap_or(false);
+        let is_dirty = transform.is_dirty();
         self.transforms.insert(id, transform);
         self.increment_version();
+        if is_dirty && !was_dirty {
+            self.stats.dirty_count += 1;
+        } else if !is_dirty && was_dirty {
+            self.stats.dirty_count = self.stats.dirty_count.saturating_sub(1);
+        }
         Ok(())
     }
 
@@ -503,19 +619,12 @@ impl TransformRegistry {
         self.transforms = snapshot;
         self.increment_version();
         // Mark all as dirty
+        let dirty_count = self.transforms.len();
         for transform in self.transforms.values_mut() {
             transform.mark_dirty();
         }
-    }
-
-    /// Get statistics about the registry
-    pub fn stats(&self) -> TransformStats {
-        let dirty_count = self.transforms.values().filter(|t| t.is_dirty()).count();
-        TransformStats {
-            total_count: self.transforms.len(),
-            dirty_count,
-            version: self.version,
-        }
+        self.stats.dirty_count = dirty_count;
+        self.stats.total_transforms = self.transforms.len();
     }
 
     /// Update transforms for a specific object and its children
@@ -598,18 +707,12 @@ impl TransformRegistry {
 
     /// Force all transforms to be marked as dirty
     pub fn mark_all_dirty(&mut self) {
+        let total = self.transforms.len();
         for transform in self.transforms.values_mut() {
             transform.mark_dirty();
         }
+        self.stats.dirty_count = total;
     }
-}
-
-/// Statistics about the TransformRegistry
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TransformStats {
-    pub total_count: usize,
-    pub dirty_count: usize,
-    pub version: u64,
 }
 
 #[cfg(test)]
@@ -917,7 +1020,7 @@ mod tests {
         registry.add(id2, Transform::identity()).unwrap();
 
         let stats = registry.stats();
-        assert_eq!(stats.total_count, 2);
+        assert_eq!(stats.total_transforms, 2);
         assert_eq!(stats.dirty_count, 0);
     }
 
@@ -993,5 +1096,69 @@ mod tests {
 
         let stats = registry.stats();
         assert_eq!(stats.dirty_count, 2);
+    }
+
+    #[test]
+    fn test_transform_registry_config() {
+        let config = TransformRegistryConfig::default();
+        assert_eq!(config.max_transforms, 0);
+        assert!(config.enable_stats);
+        assert!(config.auto_update);
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_transform_registry_config_validation() {
+        let config = TransformRegistryConfig {
+            max_transforms: 0,
+            ..Default::default()
+        };
+        assert!(config.validate().is_ok());
+
+        let config = TransformRegistryConfig {
+            max_transforms: 1,
+            ..Default::default()
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_transform_registry_with_config() {
+        let config = TransformRegistryConfig {
+            max_transforms: 100,
+            ..Default::default()
+        };
+        let registry = TransformRegistry::with_config(config);
+        assert_eq!(registry.config().max_transforms, 100);
+    }
+
+    #[test]
+    fn test_transform_registry_stats_tracking() {
+        let mut registry = TransformRegistry::new();
+        let id = Id::new(poko_ids_handles::IdType::Model);
+        registry.add(id, Transform::identity()).unwrap();
+
+        let stats = registry.stats();
+        assert_eq!(stats.total_transforms, 1);
+        assert_eq!(stats.adds_count, 1);
+        assert_eq!(stats.removes_count, 0);
+    }
+
+    #[test]
+    fn test_transform_registry_max_capacity() {
+        let config = TransformRegistryConfig {
+            max_transforms: 2,
+            ..Default::default()
+        };
+        let mut registry = TransformRegistry::with_config(config);
+        let id1 = Id::new(poko_ids_handles::IdType::Model);
+        let id2 = Id::new(poko_ids_handles::IdType::Part);
+        let id3 = Id::new(poko_ids_handles::IdType::Model);
+
+        registry.add(id1, Transform::identity()).unwrap();
+        registry.add(id2, Transform::identity()).unwrap();
+
+        let result = registry.add(id3, Transform::identity());
+        assert!(matches!(result, Err(TransformError::InvalidTransform(_))));
     }
 }

@@ -4,9 +4,41 @@
 //! and validates handles to prevent use-after-free bugs.
 
 use crate::{Handle, HandleGeneration, HandleIndex};
+use serde::{Deserialize, Serialize};
 
 /// Maximum number of handles in the registry
 const MAX_HANDLES: usize = u16::MAX as usize;
+
+/// Configuration for the handle registry
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RegistryConfig {
+    /// Maximum capacity (0 = use MAX_HANDLES)
+    pub max_capacity: usize,
+    /// Whether to enable statistics tracking
+    pub enable_stats: bool,
+}
+
+impl Default for RegistryConfig {
+    fn default() -> Self {
+        Self {
+            max_capacity: MAX_HANDLES,
+            enable_stats: true,
+        }
+    }
+}
+
+impl RegistryConfig {
+    /// Validate the configuration
+    pub fn validate(&self) -> Result<(), RegistryError> {
+        if self.max_capacity > MAX_HANDLES {
+            return Err(RegistryError::RegistryFull(MAX_HANDLES));
+        }
+        if self.max_capacity == 0 {
+            return Err(RegistryError::InvalidIndex(0, 0));
+        }
+        Ok(())
+    }
+}
 
 /// Errors that can occur in the registry
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -24,10 +56,21 @@ pub enum RegistryError {
 }
 
 /// Metadata for a handle slot
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SlotMetadata {
     generation: HandleGeneration,
     is_live: bool,
+}
+
+/// Registry statistics
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegistryStats {
+    pub total_slots: usize,
+    pub live_count: usize,
+    pub free_count: usize,
+    pub generation_reuses: u64,
+    pub allocations: u64,
+    pub deallocations: u64,
 }
 
 /// A registry for managing handles and their lifetimes
@@ -42,35 +85,56 @@ pub struct HandleRegistry<T> {
     metadata: Vec<SlotMetadata>,
     free_list: Vec<HandleIndex>,
     next_index: HandleIndex,
+    config: RegistryConfig,
+    stats: RegistryStats,
 }
 
 impl<T> HandleRegistry<T> {
     /// Create a new empty registry
     pub fn new() -> Self {
+        Self::with_config(RegistryConfig::default())
+    }
+
+    /// Create a new registry with configuration
+    pub fn with_config(config: RegistryConfig) -> Self {
+        config.validate().unwrap();
         Self {
             slots: Vec::new(),
             metadata: Vec::new(),
             free_list: Vec::new(),
             next_index: 0,
+            config,
+            stats: RegistryStats {
+                total_slots: 0,
+                live_count: 0,
+                free_count: 0,
+                generation_reuses: 0,
+                allocations: 0,
+                deallocations: 0,
+            },
         }
     }
 
     /// Create a new registry with pre-allocated capacity
     pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            slots: Vec::with_capacity(capacity),
-            metadata: Vec::with_capacity(capacity),
-            free_list: Vec::new(),
-            next_index: 0,
-        }
+        let config = RegistryConfig {
+            max_capacity: capacity.min(MAX_HANDLES),
+            ..Default::default()
+        };
+        Self::with_config(config)
     }
 
     /// Allocate a new handle and insert a value
     ///
     /// Returns the handle for the newly allocated value.
     pub fn allocate(&mut self, value: T) -> Result<Handle, RegistryError> {
+        if self.stats.total_slots >= self.config.max_capacity {
+            return Err(RegistryError::RegistryFull(self.config.max_capacity));
+        }
+
         let index = if let Some(free_index) = self.free_list.pop() {
             // Reuse a freed slot
+            self.stats.generation_reuses += 1;
             free_index
         } else {
             // Allocate a new slot
@@ -84,6 +148,7 @@ impl<T> HandleRegistry<T> {
                 generation: 0,
                 is_live: false,
             });
+            self.stats.total_slots += 1;
             index
         };
 
@@ -99,6 +164,10 @@ impl<T> HandleRegistry<T> {
         metadata.generation = metadata.generation.wrapping_add(1);
         metadata.is_live = true;
         *slot = Some(value);
+
+        self.stats.allocations += 1;
+        self.stats.live_count += 1;
+        self.stats.free_count = self.free_list.len();
 
         Ok(Handle::new(index, metadata.generation))
     }
@@ -133,6 +202,10 @@ impl<T> HandleRegistry<T> {
 
         self.metadata[index].is_live = false;
         self.free_list.push(handle.index());
+
+        self.stats.deallocations += 1;
+        self.stats.live_count -= 1;
+        self.stats.free_count = self.free_list.len();
 
         Ok(self.slots[index].take().unwrap())
     }
@@ -176,6 +249,24 @@ impl<T> HandleRegistry<T> {
         self.metadata.clear();
         self.free_list.clear();
         self.next_index = 0;
+        self.stats = RegistryStats {
+            total_slots: 0,
+            live_count: 0,
+            free_count: 0,
+            generation_reuses: 0,
+            allocations: 0,
+            deallocations: 0,
+        };
+    }
+
+    /// Get registry statistics
+    pub fn stats(&self) -> &RegistryStats {
+        &self.stats
+    }
+
+    /// Get the configuration
+    pub fn config(&self) -> &RegistryConfig {
+        &self.config
     }
 
     /// Iterate over all live handles
@@ -302,16 +393,6 @@ impl<T> HandleRegistry<T> {
             Some(self.metadata[idx].generation)
         } else {
             None
-        }
-    }
-
-    /// Get statistics about the registry
-    pub fn stats(&self) -> RegistryStats {
-        RegistryStats {
-            total_slots: self.slots.len(),
-            live_count: self.len(),
-            free_count: self.free_count(),
-            next_index: self.next_index,
         }
     }
 
@@ -483,15 +564,6 @@ pub struct RegistryDiagnostics {
     pub max_index: HandleIndex,
 }
 
-/// Statistics about a HandleRegistry
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RegistryStats {
-    pub total_slots: usize,
-    pub live_count: usize,
-    pub free_count: usize,
-    pub next_index: HandleIndex,
-}
-
 impl<T> Default for HandleRegistry<T> {
     fn default() -> Self {
         Self::new()
@@ -593,8 +665,13 @@ mod tests {
 
     #[test]
     fn test_registry_full() {
-        let mut registry = HandleRegistry::new();
-        registry.next_index = u16::MAX;
+        let config = RegistryConfig {
+            max_capacity: 1,
+            ..Default::default()
+        };
+        let mut registry: HandleRegistry<i32> = HandleRegistry::with_config(config);
+
+        registry.allocate(1).unwrap();
 
         // Try to allocate when full
         let result = registry.allocate(42);
@@ -727,6 +804,79 @@ mod tests {
 
         registry.update(handle, |v| *v *= 2).unwrap();
         assert_eq!(registry.get(handle), Ok(&84));
+    }
+
+    #[test]
+    fn test_registry_config() {
+        let config = RegistryConfig::default();
+        assert_eq!(config.max_capacity, MAX_HANDLES);
+        assert!(config.enable_stats);
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_registry_config_validation() {
+        let config = RegistryConfig {
+            max_capacity: 0,
+            ..Default::default()
+        };
+        assert!(config.validate().is_err());
+
+        let config = RegistryConfig {
+            max_capacity: MAX_HANDLES + 1,
+            ..Default::default()
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_registry_with_config() {
+        let config = RegistryConfig {
+            max_capacity: 100,
+            ..Default::default()
+        };
+        let registry: HandleRegistry<i32> = HandleRegistry::with_config(config);
+        assert_eq!(registry.config().max_capacity, 100);
+    }
+
+    #[test]
+    fn test_registry_stats() {
+        let mut registry = HandleRegistry::new();
+        assert_eq!(registry.stats().allocations, 0);
+        assert_eq!(registry.stats().deallocations, 0);
+
+        let h1 = registry.allocate(1).unwrap();
+        assert_eq!(registry.stats().allocations, 1);
+        assert_eq!(registry.stats().live_count, 1);
+
+        registry.remove(h1).unwrap();
+        assert_eq!(registry.stats().deallocations, 1);
+        assert_eq!(registry.stats().live_count, 0);
+    }
+
+    #[test]
+    fn test_generation_reuse_tracking() {
+        let mut registry = HandleRegistry::new();
+        let h1 = registry.allocate(1).unwrap();
+        registry.remove(h1).unwrap();
+        let _h2 = registry.allocate(2).unwrap();
+        
+        assert_eq!(registry.stats().generation_reuses, 1);
+    }
+
+    #[test]
+    fn test_max_capacity_enforcement() {
+        let config = RegistryConfig {
+            max_capacity: 2,
+            ..Default::default()
+        };
+        let mut registry: HandleRegistry<i32> = HandleRegistry::with_config(config);
+        
+        registry.allocate(1).unwrap();
+        registry.allocate(2).unwrap();
+        
+        let result = registry.allocate(3);
+        assert!(matches!(result, Err(RegistryError::RegistryFull(_))));
     }
 
     #[test]

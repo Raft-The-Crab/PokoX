@@ -603,7 +603,7 @@ impl ObjectRegistry {
 
     /// Get registry statistics
     pub fn stats(&self) -> RegistryStats {
-        self.objects.stats()
+        self.objects.stats().clone()
     }
 
     /// Get the depth of an object in the hierarchy (0 for workspace)

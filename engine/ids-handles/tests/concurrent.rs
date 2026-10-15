@@ -118,7 +118,7 @@ fn test_multiple_registries_concurrent() {
                 .collect();
             let duration = start.elapsed();
 
-            let stats = registry.stats();
+            let stats = registry.stats().clone();
             (registry_handles.len(), duration, stats)
         });
 

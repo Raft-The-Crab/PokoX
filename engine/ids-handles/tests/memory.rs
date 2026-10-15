@@ -98,9 +98,9 @@ fn test_registry_stats_size() {
     let stats_size = mem::size_of::<RegistryStats>();
     println!("RegistryStats size: {} bytes", stats_size);
 
-    // Should be small (4 usize fields)
+    // Should be small (6 fields: 3 usize + 3 u64)
     assert!(
-        stats_size <= 32,
+        stats_size <= 48,
         "RegistryStats too large: {} bytes",
         stats_size
     );

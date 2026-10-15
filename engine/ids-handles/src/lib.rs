@@ -18,7 +18,7 @@ pub mod serialization;
 pub use handle::{Handle, HandleGeneration, HandleIndex};
 pub use id::{Id, IdGenerator, IdParseError, IdType};
 pub use registry::{
-    HandleRegistry, RegistryDiagnostics, RegistryError, RegistryStats, SlotMetadata,
+    HandleRegistry, RegistryConfig, RegistryDiagnostics, RegistryError, RegistryStats, SlotMetadata,
 };
 
 pub use generation::{GenerationCounter, GenerationPool, GenerationValidator};

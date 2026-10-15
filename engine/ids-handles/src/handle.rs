@@ -156,10 +156,7 @@ impl Handle {
 
 impl PartialOrd for Handle {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self.index != other.index {
-            return Some(self.index.cmp(&other.index));
-        }
-        Some(self.generation.cmp(&other.generation))
+        Some(self.cmp(other))
     }
 }
 
