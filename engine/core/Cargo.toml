@@ -4,9 +4,13 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+authors.workspace = true
 
 [dependencies]
 poko-ids-handles = { path = "../ids-handles" }
 poko-object-model = { path = "../object-model" }
 poko-transforms = { path = "../transforms" }
 poko-metadata-registry = { path = "../metadata-registry" }
+poko-time = { path = "../time" }
+poko-logging = { path = "../logging" }
+poko-memory = { path = "../memory" }
