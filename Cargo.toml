@@ -1,7 +1,9 @@
 [workspace]
 members = [
     "engine/core",
-    "engine/ids-handles",
+    "engine/ids-handles", "engine/logging", "engine/memory", "engine/metadata-registry",
+    "engine/object-model", "engine/time", "engine/transforms",
+    "engine/errors", "engine/events", "engine/jobs", "engine/lifecycle",
 ]
 resolver = "2"
 

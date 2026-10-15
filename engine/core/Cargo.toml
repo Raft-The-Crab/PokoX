@@ -14,3 +14,7 @@ poko-metadata-registry = { path = "../metadata-registry" }
 poko-time = { path = "../time" }
 poko-logging = { path = "../logging" }
 poko-memory = { path = "../memory" }
+poko-errors = { path = "../errors" }
+poko-events = { path = "../events" }
+poko-jobs = { path = "../jobs" }
+poko-lifecycle = { path = "../lifecycle" }

@@ -18,7 +18,7 @@ pub use poko_transforms::{Transform, TransformError, TransformRegistry, Transfor
 pub use poko_metadata_registry::{
     DataType, DefaultValue, EventMetadata, FunctionMetadata, InspectorConfig, MetadataRegistry,
     MetadataRegistryStats, ParameterMetadata, PropertyMetadata, ReplicationPolicy, TypeMetadata,
-    ValidationError, Validator, Visibility,
+    ValidationError as MetadataValidationError, Validator, Visibility,
 };
 
 pub use poko_time::{
@@ -34,4 +34,28 @@ pub use poko_logging::{
 pub use poko_memory::{
     AllocationInfo, ManagerConfig, MemoryManager, MemoryManagerError, MemoryPool, MemoryStats,
     MemoryTracker, MemoryTrackerError, PoolConfig, PoolError, PoolStats, PoolType,
+};
+
+pub use poko_errors::{
+    EngineError, ErrorContext, ErrorKind, ErrorSeverity, IoError, IoErrorKind, MemoryError,
+    MemoryErrorKind, NetworkError, NetworkErrorKind, ValidationError as ErrorsValidationError, ValidationKind,
+};
+
+pub use poko_events::{
+    DispatcherConfig, DispatcherError, EventBus, EventBusConfig, EventBusError, EventDispatcher,
+    EventId, EventMetadata as BusEventMetadata, EventPayload, EventPriority, EventSubscription, EventSystem,
+    SubscriptionError, SubscriptionFilter, SystemError, SystemEvent, SystemEventKind,
+};
+
+pub use poko_jobs::{
+    CancellationError, CancellationToken, DependencyCheckResult, DependencyResolution,
+    JobCancellation, JobDependency, JobId, JobPriority, JobScheduler, JobStatus, PriorityPolicy,
+    SchedulerConfig, SchedulerError,
+};
+
+pub use poko_lifecycle::{
+    CleanupError, CleanupPhase, CleanupState, CreationError, CreationPhase, CreationState,
+    DestructionError, DestructionPhase, DestructionState, InitializationError,
+    InitializationPhase, InitializationState, LifecycleCleaner, LifecycleCreator,
+    LifecycleDestroyer, LifecycleInitializer,
 };
