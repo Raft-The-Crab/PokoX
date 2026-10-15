@@ -17,7 +17,9 @@ pub enum DispatcherError {
 }
 
 /// Event handler function type
-pub type EventHandler = Arc<dyn Fn(&EventPayload) -> Result<(), Box<dyn std::error::Error + Send + Sync>> + Send + Sync>;
+pub type EventHandler = Arc<
+    dyn Fn(&EventPayload) -> Result<(), Box<dyn std::error::Error + Send + Sync>> + Send + Sync,
+>;
 
 /// Configuration for the event dispatcher
 #[derive(Debug, Clone)]
@@ -73,7 +75,7 @@ impl EventDispatcher {
         handler: EventHandler,
     ) -> Result<(), DispatcherError> {
         let mut handlers = self.handlers.lock().unwrap();
-        let handlers_vec = handlers.entry(event_type).or_insert_with(Vec::new);
+        let handlers_vec = handlers.entry(event_type).or_default();
 
         if handlers_vec.len() >= self.config.max_handlers_per_type {
             return Err(DispatcherError::NoHandler(
@@ -187,7 +189,8 @@ mod tests {
             .register_handler("TestEvent".to_string(), handler)
             .unwrap();
 
-        let metadata = crate::bus::EventMetadata::new("TestEvent".to_string(), "TestSource".to_string());
+        let metadata =
+            crate::bus::EventMetadata::new("TestEvent".to_string(), "TestSource".to_string());
         let payload = EventPayload::new(metadata, vec![]);
         assert!(dispatcher.dispatch(payload).is_ok());
     }

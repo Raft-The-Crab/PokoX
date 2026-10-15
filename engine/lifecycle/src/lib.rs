@@ -2,12 +2,17 @@
 //!
 //! Provides comprehensive lifecycle management for engine components including creation, initialization, cleanup, and destruction.
 
+pub mod cleanup;
 pub mod creation;
 pub mod destruction;
 pub mod initialization;
-pub mod cleanup;
 
-pub use creation::{LifecycleCreator, CreationPhase, CreationError, CreationState};
-pub use destruction::{LifecycleDestroyer, DestructionPhase, DestructionError, DestructionState};
-pub use initialization::{LifecycleInitializer, InitializationPhase, InitializationError, InitializationState};
-pub use cleanup::{LifecycleCleaner, CleanupPhase, CleanupError, CleanupState};
+pub use cleanup::{CleanupError, CleanupPhase, CleanupState, CleanupStats, LifecycleCleaner};
+pub use creation::{CreationError, CreationPhase, CreationState, CreationStats, LifecycleCreator};
+pub use destruction::{
+    DestructionError, DestructionPhase, DestructionState, DestructionStats, LifecycleDestroyer,
+};
+pub use initialization::{
+    InitializationError, InitializationPhase, InitializationState, InitializationStats,
+    LifecycleInitializer,
+};

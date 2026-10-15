@@ -3,13 +3,13 @@
 //! Provides unified error types and error handling utilities across the engine.
 
 pub mod core;
-pub mod memory;
 pub mod io;
+pub mod memory;
 pub mod network;
 pub mod validation;
 
-pub use core::{EngineError, ErrorKind, ErrorSeverity, ErrorContext};
-pub use memory::{MemoryError, MemoryErrorKind};
+pub use core::{EngineError, ErrorContext, ErrorKind, ErrorSeverity};
 pub use io::{IoError, IoErrorKind};
+pub use memory::{MemoryError, MemoryErrorKind};
 pub use network::{NetworkError, NetworkErrorKind};
 pub use validation::{ValidationError, ValidationKind};

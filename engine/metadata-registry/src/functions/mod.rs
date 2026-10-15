@@ -174,11 +174,14 @@ mod tests {
     fn test_function_builder() {
         let func = FunctionMetadata::new("SetPosition".to_string(), "Set Position".to_string())
             .with_return_type(DataType::Bool)
-            .with_parameter(ParameterMetadata::new("position".to_string(), DataType::Vec3))
+            .with_parameter(ParameterMetadata::new(
+                "position".to_string(),
+                DataType::Vec3,
+            ))
             .with_parameter(
                 ParameterMetadata::new("smooth".to_string(), DataType::Bool)
                     .with_optional(true)
-                    .with_default(DefaultValue::Bool(false))
+                    .with_default(DefaultValue::Bool(false)),
             )
             .with_visibility(Visibility::Public)
             .with_async(false)

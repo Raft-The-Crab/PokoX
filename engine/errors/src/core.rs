@@ -1,10 +1,12 @@
 //! Core error types for the engine
 
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 use thiserror::Error;
 
 /// Severity level of an error
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ErrorSeverity {
     /// Informational - can be ignored
     Info,
@@ -28,7 +30,7 @@ impl fmt::Display for ErrorSeverity {
 }
 
 /// Category of engine error
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ErrorKind {
     /// Memory-related error
     Memory,
@@ -73,7 +75,7 @@ impl ErrorKind {
 }
 
 /// Context information for an error
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorContext {
     /// Error severity
     pub severity: ErrorSeverity,
@@ -82,11 +84,13 @@ pub struct ErrorContext {
     /// Component/module that generated the error
     pub component: String,
     /// Additional context
-    pub context: Vec<(String, String)>,
+    pub context: HashMap<String, String>,
     /// Error code
     pub code: Option<String>,
-    /// Stack trace (optional)
-    pub stack_trace: Option<String>,
+    /// Timestamp
+    pub timestamp: i64,
+    /// Unique error ID
+    pub error_id: String,
 }
 
 impl ErrorContext {
@@ -96,15 +100,16 @@ impl ErrorContext {
             severity,
             kind,
             component,
-            context: Vec::new(),
+            context: HashMap::new(),
             code: None,
-            stack_trace: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            error_id: uuid::Uuid::new_v4().to_string(),
         }
     }
 
     /// Add a context key-value pair
     pub fn add_context(mut self, key: String, value: String) -> Self {
-        self.context.push((key, value));
+        self.context.insert(key, value);
         self
     }
 
@@ -114,10 +119,19 @@ impl ErrorContext {
         self
     }
 
-    /// Set the stack trace
-    pub fn with_stack_trace(mut self, trace: String) -> Self {
-        self.stack_trace = Some(trace);
-        self
+    /// Get context value by key
+    pub fn get_context(&self, key: &str) -> Option<&String> {
+        self.context.get(key)
+    }
+
+    /// Check if context contains a key
+    pub fn has_context(&self, key: &str) -> bool {
+        self.context.contains_key(key)
+    }
+
+    /// Get the number of context entries
+    pub fn context_count(&self) -> usize {
+        self.context.len()
     }
 }
 
@@ -131,6 +145,16 @@ pub struct EngineError {
     /// Source error (if any)
     #[source]
     pub source: Option<Box<dyn std::error::Error + Send + Sync>>,
+}
+
+impl Clone for EngineError {
+    fn clone(&self) -> Self {
+        Self {
+            message: self.message.clone(),
+            context: self.context.clone(),
+            source: None, // Cannot clone trait objects
+        }
+    }
 }
 
 impl EngineError {
@@ -180,6 +204,42 @@ impl EngineError {
     pub fn is_recoverable(&self) -> bool {
         self.context.severity != ErrorSeverity::Critical
     }
+
+    /// Get the error ID
+    pub fn error_id(&self) -> &str {
+        &self.context.error_id
+    }
+
+    /// Get the timestamp
+    pub fn timestamp(&self) -> i64 {
+        self.context.timestamp
+    }
+
+    /// Get the error code
+    pub fn code(&self) -> Option<&str> {
+        self.context.code.as_deref()
+    }
+
+    /// Convert to JSON (without source error)
+    pub fn to_json(&self) -> Result<String, serde_json::Error> {
+        let value = serde_json::json!({
+            "message": self.message,
+            "context": self.context,
+        });
+        serde_json::to_string_pretty(&value)
+    }
+
+    /// Convert from JSON (source will be None)
+    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+        let value: serde_json::Value = serde_json::from_str(json)?;
+        let message = value["message"].as_str().unwrap_or("").to_string();
+        let context: ErrorContext = serde_json::from_value(value["context"].clone())?;
+        Ok(Self {
+            message,
+            context,
+            source: None,
+        })
+    }
 }
 
 impl fmt::Display for EngineError {
@@ -219,7 +279,9 @@ mod tests {
         )
         .add_context("file".to_string(), "test.txt".to_string())
         .add_context("line".to_string(), "42".to_string());
-        assert_eq!(context.context.len(), 2);
+        assert_eq!(context.context_count(), 2);
+        assert!(context.has_context("file"));
+        assert_eq!(context.get_context("file"), Some(&"test.txt".to_string()));
     }
 
     #[test]
@@ -252,5 +314,43 @@ mod tests {
         assert!(ErrorSeverity::Critical > ErrorSeverity::Error);
         assert!(ErrorSeverity::Error > ErrorSeverity::Warning);
         assert!(ErrorSeverity::Warning > ErrorSeverity::Info);
+    }
+
+    #[test]
+    fn test_error_id_and_timestamp() {
+        let context = ErrorContext::new(
+            ErrorSeverity::Error,
+            ErrorKind::Memory,
+            "TestComponent".to_string(),
+        );
+        assert!(!context.error_id.is_empty());
+        assert!(context.timestamp > 0);
+    }
+
+    #[test]
+    fn test_error_json_serialization() {
+        let context = ErrorContext::new(
+            ErrorSeverity::Error,
+            ErrorKind::Memory,
+            "TestComponent".to_string(),
+        );
+        let error = EngineError::new("Test error".to_string(), context);
+        let json = error.to_json().unwrap();
+        assert!(json.contains("Test error"));
+        assert!(json.contains("TestComponent"));
+    }
+
+    #[test]
+    fn test_error_json_deserialization() {
+        let context = ErrorContext::new(
+            ErrorSeverity::Error,
+            ErrorKind::Memory,
+            "TestComponent".to_string(),
+        );
+        let error = EngineError::new("Test error".to_string(), context);
+        let json = error.to_json().unwrap();
+        let deserialized: EngineError = EngineError::from_json(&json).unwrap();
+        assert_eq!(deserialized.message, "Test error");
+        assert_eq!(deserialized.component(), "TestComponent");
     }
 }

@@ -1,11 +1,23 @@
 //! Job priorities and priority policies
 
 /// Job priority levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    serde::Serialize,
+    serde::Deserialize,
+    Default,
+)]
 pub enum JobPriority {
     /// Low priority
     Low = 0,
     /// Normal priority
+    #[default]
     Normal = 1,
     /// High priority
     High = 2,
@@ -13,29 +25,18 @@ pub enum JobPriority {
     Critical = 3,
 }
 
-impl Default for JobPriority {
-    fn default() -> Self {
-        JobPriority::Normal
-    }
-}
-
 /// Priority policy for job scheduling
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PriorityPolicy {
     /// FIFO (First In, First Out)
     Fifo,
     /// LIFO (Last In, First Out)
     Lifo,
     /// Priority-based (higher priority jobs execute first)
+    #[default]
     Priority,
     /// Round-robin
     RoundRobin,
-}
-
-impl Default for PriorityPolicy {
-    fn default() -> Self {
-        PriorityPolicy::Priority
-    }
 }
 
 #[cfg(test)]

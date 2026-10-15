@@ -1,6 +1,8 @@
 //! Lifecycle destruction phase management
 
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -21,7 +23,7 @@ pub enum DestructionPhase {
 }
 
 /// Component destruction state
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DestructionState {
     /// Component ID
     pub component_id: ComponentId,
@@ -33,6 +35,8 @@ pub struct DestructionState {
     pub destroyed_at: Option<DateTime<Utc>>,
     /// Failure reason (if failed)
     pub failure_reason: Option<String>,
+    /// State timestamp
+    pub updated_at: DateTime<Utc>,
 }
 
 impl DestructionState {
@@ -44,24 +48,28 @@ impl DestructionState {
             phase: DestructionPhase::Active,
             destroyed_at: None,
             failure_reason: None,
+            updated_at: Utc::now(),
         }
     }
 
     /// Mark as destroying
     pub fn mark_destroying(&mut self) {
         self.phase = DestructionPhase::Destroying;
+        self.updated_at = Utc::now();
     }
 
     /// Mark as destroyed
     pub fn mark_destroyed(&mut self) {
         self.phase = DestructionPhase::Destroyed;
         self.destroyed_at = Some(Utc::now());
+        self.updated_at = Utc::now();
     }
 
     /// Mark as failed
     pub fn mark_failed(&mut self, reason: String) {
         self.phase = DestructionPhase::Failed;
         self.failure_reason = Some(reason);
+        self.updated_at = Utc::now();
     }
 
     /// Check if the component is destroyed
@@ -83,6 +91,16 @@ impl DestructionState {
     pub fn is_failed(&self) -> bool {
         self.phase == DestructionPhase::Failed
     }
+
+    /// Get the age of the state
+    pub fn age(&self) -> chrono::Duration {
+        Utc::now().signed_duration_since(self.updated_at)
+    }
+
+    /// Check if the state is stale
+    pub fn is_stale(&self, max_age: chrono::Duration) -> bool {
+        self.age() > max_age
+    }
 }
 
 /// Errors that can occur during destruction
@@ -99,16 +117,17 @@ pub enum DestructionError {
 }
 
 /// Lifecycle destroyer for managing component destruction
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LifecycleDestroyer {
     /// Destruction states by component ID
-    states: std::collections::HashMap<ComponentId, DestructionState>,
+    states: HashMap<ComponentId, DestructionState>,
 }
 
 impl LifecycleDestroyer {
     /// Create a new lifecycle destroyer
     pub fn new() -> Self {
         Self {
-            states: std::collections::HashMap::new(),
+            states: HashMap::new(),
         }
     }
 
@@ -134,7 +153,10 @@ impl LifecycleDestroyer {
     }
 
     /// Complete destruction of a component
-    pub fn complete_destruction(&mut self, component_id: ComponentId) -> Result<(), DestructionError> {
+    pub fn complete_destruction(
+        &mut self,
+        component_id: ComponentId,
+    ) -> Result<(), DestructionError> {
         let state = self
             .states
             .get_mut(&component_id)
@@ -149,7 +171,11 @@ impl LifecycleDestroyer {
     }
 
     /// Fail destruction of a component
-    pub fn fail_destruction(&mut self, component_id: ComponentId, reason: String) -> Result<(), DestructionError> {
+    pub fn fail_destruction(
+        &mut self,
+        component_id: ComponentId,
+        reason: String,
+    ) -> Result<(), DestructionError> {
         let state = self
             .states
             .get_mut(&component_id)
@@ -198,10 +224,43 @@ impl LifecycleDestroyer {
         (active, destroying, destroyed, failed)
     }
 
+    /// Get destruction statistics
+    pub fn stats(&self) -> DestructionStats {
+        let (active, destroying, destroyed, failed) = self.phase_counts();
+        DestructionStats {
+            total: self.count(),
+            active,
+            destroying,
+            destroyed,
+            failed,
+        }
+    }
+
     /// Clear all registered components
     pub fn clear(&mut self) {
         self.states.clear();
     }
+
+    /// Serialize to JSON
+    pub fn to_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(&self.states)
+    }
+
+    /// Deserialize from JSON
+    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+        let states = serde_json::from_str(json)?;
+        Ok(Self { states })
+    }
+}
+
+/// Destruction statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DestructionStats {
+    pub total: usize,
+    pub active: usize,
+    pub destroying: usize,
+    pub destroyed: usize,
+    pub failed: usize,
 }
 
 impl Default for LifecycleDestroyer {
@@ -255,7 +314,10 @@ mod tests {
         let component_id = Uuid::new_v4();
         destroyer.register(component_id, "TestComponent".to_string());
         destroyer.start_destruction(component_id).unwrap();
-        assert_eq!(destroyer.get_phase(component_id), Some(DestructionPhase::Destroying));
+        assert_eq!(
+            destroyer.get_phase(component_id),
+            Some(DestructionPhase::Destroying)
+        );
     }
 
     #[test]
@@ -265,7 +327,10 @@ mod tests {
         destroyer.register(component_id, "TestComponent".to_string());
         destroyer.start_destruction(component_id).unwrap();
         destroyer.complete_destruction(component_id).unwrap();
-        assert_eq!(destroyer.get_phase(component_id), Some(DestructionPhase::Destroyed));
+        assert_eq!(
+            destroyer.get_phase(component_id),
+            Some(DestructionPhase::Destroyed)
+        );
     }
 
     #[test]
@@ -273,8 +338,13 @@ mod tests {
         let mut destroyer = LifecycleDestroyer::new();
         let component_id = Uuid::new_v4();
         destroyer.register(component_id, "TestComponent".to_string());
-        destroyer.fail_destruction(component_id, "Test failure".to_string()).unwrap();
-        assert_eq!(destroyer.get_phase(component_id), Some(DestructionPhase::Failed));
+        destroyer
+            .fail_destruction(component_id, "Test failure".to_string())
+            .unwrap();
+        assert_eq!(
+            destroyer.get_phase(component_id),
+            Some(DestructionPhase::Failed)
+        );
     }
 
     #[test]
@@ -309,5 +379,34 @@ mod tests {
         assert_eq!(destroying, 1);
         assert_eq!(destroyed, 1);
         assert_eq!(failed, 1);
+    }
+
+    #[test]
+    fn test_destruction_stats() {
+        let mut destroyer = LifecycleDestroyer::new();
+        let id = Uuid::new_v4();
+        destroyer.register(id, "TestComponent".to_string());
+        destroyer.start_destruction(id).unwrap();
+        let stats = destroyer.stats();
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.destroying, 1);
+    }
+
+    #[test]
+    fn test_state_age() {
+        let mut state = DestructionState::new(Uuid::new_v4(), "Test".to_string());
+        state.mark_destroying();
+        let age = state.age();
+        assert!(age.num_seconds() >= 0);
+    }
+
+    #[test]
+    fn test_state_serialization() {
+        let mut destroyer = LifecycleDestroyer::new();
+        let id = Uuid::new_v4();
+        destroyer.register(id, "TestComponent".to_string());
+        let json = destroyer.to_json().unwrap();
+        let restored = LifecycleDestroyer::from_json(&json).unwrap();
+        assert_eq!(restored.count(), 1);
     }
 }

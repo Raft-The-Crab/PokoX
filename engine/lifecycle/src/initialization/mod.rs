@@ -1,6 +1,8 @@
 //! Lifecycle initialization phase management
 
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -21,7 +23,7 @@ pub enum InitializationPhase {
 }
 
 /// Component initialization state
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitializationState {
     /// Component ID
     pub component_id: ComponentId,
@@ -33,6 +35,8 @@ pub struct InitializationState {
     pub initialized_at: Option<DateTime<Utc>>,
     /// Failure reason (if failed)
     pub failure_reason: Option<String>,
+    /// State timestamp
+    pub updated_at: DateTime<Utc>,
 }
 
 impl InitializationState {
@@ -44,24 +48,28 @@ impl InitializationState {
             phase: InitializationPhase::NotInitialized,
             initialized_at: None,
             failure_reason: None,
+            updated_at: Utc::now(),
         }
     }
 
     /// Mark as initializing
     pub fn mark_initializing(&mut self) {
         self.phase = InitializationPhase::Initializing;
+        self.updated_at = Utc::now();
     }
 
     /// Mark as initialized
     pub fn mark_initialized(&mut self) {
         self.phase = InitializationPhase::Initialized;
         self.initialized_at = Some(Utc::now());
+        self.updated_at = Utc::now();
     }
 
     /// Mark as failed
     pub fn mark_failed(&mut self, reason: String) {
         self.phase = InitializationPhase::Failed;
         self.failure_reason = Some(reason);
+        self.updated_at = Utc::now();
     }
 
     /// Check if the component is initialized
@@ -77,6 +85,16 @@ impl InitializationState {
     /// Check if the component failed
     pub fn is_failed(&self) -> bool {
         self.phase == InitializationPhase::Failed
+    }
+
+    /// Get the age of the state
+    pub fn age(&self) -> chrono::Duration {
+        Utc::now().signed_duration_since(self.updated_at)
+    }
+
+    /// Check if the state is stale
+    pub fn is_stale(&self, max_age: chrono::Duration) -> bool {
+        self.age() > max_age
     }
 }
 
@@ -94,16 +112,17 @@ pub enum InitializationError {
 }
 
 /// Lifecycle initializer for managing component initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LifecycleInitializer {
     /// Initialization states by component ID
-    states: std::collections::HashMap<ComponentId, InitializationState>,
+    states: HashMap<ComponentId, InitializationState>,
 }
 
 impl LifecycleInitializer {
     /// Create a new lifecycle initializer
     pub fn new() -> Self {
         Self {
-            states: std::collections::HashMap::new(),
+            states: HashMap::new(),
         }
     }
 
@@ -114,7 +133,10 @@ impl LifecycleInitializer {
     }
 
     /// Start initializing a component
-    pub fn start_initialization(&mut self, component_id: ComponentId) -> Result<(), InitializationError> {
+    pub fn start_initialization(
+        &mut self,
+        component_id: ComponentId,
+    ) -> Result<(), InitializationError> {
         let state = self
             .states
             .get_mut(&component_id)
@@ -129,7 +151,10 @@ impl LifecycleInitializer {
     }
 
     /// Complete initialization of a component
-    pub fn complete_initialization(&mut self, component_id: ComponentId) -> Result<(), InitializationError> {
+    pub fn complete_initialization(
+        &mut self,
+        component_id: ComponentId,
+    ) -> Result<(), InitializationError> {
         let state = self
             .states
             .get_mut(&component_id)
@@ -144,7 +169,11 @@ impl LifecycleInitializer {
     }
 
     /// Fail initialization of a component
-    pub fn fail_initialization(&mut self, component_id: ComponentId, reason: String) -> Result<(), InitializationError> {
+    pub fn fail_initialization(
+        &mut self,
+        component_id: ComponentId,
+        reason: String,
+    ) -> Result<(), InitializationError> {
         let state = self
             .states
             .get_mut(&component_id)
@@ -193,10 +222,43 @@ impl LifecycleInitializer {
         (not_initialized, initializing, initialized, failed)
     }
 
+    /// Get initialization statistics
+    pub fn stats(&self) -> InitializationStats {
+        let (not_initialized, initializing, initialized, failed) = self.phase_counts();
+        InitializationStats {
+            total: self.count(),
+            not_initialized,
+            initializing,
+            initialized,
+            failed,
+        }
+    }
+
     /// Clear all registered components
     pub fn clear(&mut self) {
         self.states.clear();
     }
+
+    /// Serialize to JSON
+    pub fn to_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(&self.states)
+    }
+
+    /// Deserialize from JSON
+    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+        let states = serde_json::from_str(json)?;
+        Ok(Self { states })
+    }
+}
+
+/// Initialization statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InitializationStats {
+    pub total: usize,
+    pub not_initialized: usize,
+    pub initializing: usize,
+    pub initialized: usize,
+    pub failed: usize,
 }
 
 impl Default for LifecycleInitializer {
@@ -249,7 +311,10 @@ mod tests {
         let component_id = Uuid::new_v4();
         initializer.register(component_id, "TestComponent".to_string());
         initializer.start_initialization(component_id).unwrap();
-        assert_eq!(initializer.get_phase(component_id), Some(InitializationPhase::Initializing));
+        assert_eq!(
+            initializer.get_phase(component_id),
+            Some(InitializationPhase::Initializing)
+        );
     }
 
     #[test]
@@ -259,7 +324,10 @@ mod tests {
         initializer.register(component_id, "TestComponent".to_string());
         initializer.start_initialization(component_id).unwrap();
         initializer.complete_initialization(component_id).unwrap();
-        assert_eq!(initializer.get_phase(component_id), Some(InitializationPhase::Initialized));
+        assert_eq!(
+            initializer.get_phase(component_id),
+            Some(InitializationPhase::Initialized)
+        );
     }
 
     #[test]
@@ -267,8 +335,13 @@ mod tests {
         let mut initializer = LifecycleInitializer::new();
         let component_id = Uuid::new_v4();
         initializer.register(component_id, "TestComponent".to_string());
-        initializer.fail_initialization(component_id, "Test failure".to_string()).unwrap();
-        assert_eq!(initializer.get_phase(component_id), Some(InitializationPhase::Failed));
+        initializer
+            .fail_initialization(component_id, "Test failure".to_string())
+            .unwrap();
+        assert_eq!(
+            initializer.get_phase(component_id),
+            Some(InitializationPhase::Failed)
+        );
     }
 
     #[test]
@@ -276,7 +349,9 @@ mod tests {
         let mut initializer = LifecycleInitializer::new();
         let component_id = Uuid::new_v4();
         initializer.register(component_id, "TestComponent".to_string());
-        initializer.complete_initialization(component_id).unwrap_err();
+        initializer
+            .complete_initialization(component_id)
+            .unwrap_err();
     }
 
     #[test]
@@ -296,12 +371,43 @@ mod tests {
         initializer.start_initialization(id3).unwrap();
         initializer.complete_initialization(id3).unwrap();
         initializer.start_initialization(id4).unwrap();
-        initializer.fail_initialization(id4, "Test".to_string()).unwrap();
+        initializer
+            .fail_initialization(id4, "Test".to_string())
+            .unwrap();
 
         let (not_initialized, initializing, initialized, failed) = initializer.phase_counts();
         assert_eq!(not_initialized, 1);
         assert_eq!(initializing, 1);
         assert_eq!(initialized, 1);
         assert_eq!(failed, 1);
+    }
+
+    #[test]
+    fn test_initialization_stats() {
+        let mut initializer = LifecycleInitializer::new();
+        let id = Uuid::new_v4();
+        initializer.register(id, "TestComponent".to_string());
+        initializer.start_initialization(id).unwrap();
+        let stats = initializer.stats();
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.initializing, 1);
+    }
+
+    #[test]
+    fn test_state_age() {
+        let mut state = InitializationState::new(Uuid::new_v4(), "Test".to_string());
+        state.mark_initializing();
+        let age = state.age();
+        assert!(age.num_seconds() >= 0);
+    }
+
+    #[test]
+    fn test_state_serialization() {
+        let mut initializer = LifecycleInitializer::new();
+        let id = Uuid::new_v4();
+        initializer.register(id, "TestComponent".to_string());
+        let json = initializer.to_json().unwrap();
+        let restored = LifecycleInitializer::from_json(&json).unwrap();
+        assert_eq!(restored.count(), 1);
     }
 }

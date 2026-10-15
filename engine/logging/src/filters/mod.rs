@@ -170,16 +170,8 @@ mod tests {
         let mut filter = LogFilter::new().unwrap();
         filter.set_min_level(LogLevel::Warn);
 
-        let info_entry = LogEntry::new(
-            LogLevel::Info,
-            "test".to_string(),
-            "test".to_string(),
-        );
-        let warn_entry = LogEntry::new(
-            LogLevel::Warn,
-            "test".to_string(),
-            "test".to_string(),
-        );
+        let info_entry = LogEntry::new(LogLevel::Info, "test".to_string(), "test".to_string());
+        let warn_entry = LogEntry::new(LogLevel::Warn, "test".to_string(), "test".to_string());
 
         assert!(!filter.should_log(&info_entry));
         assert!(filter.should_log(&warn_entry));
@@ -190,16 +182,8 @@ mod tests {
         let mut filter = LogFilter::new().unwrap();
         filter.exclude_target("spam".to_string());
 
-        let normal_entry = LogEntry::new(
-            LogLevel::Info,
-            "normal".to_string(),
-            "test".to_string(),
-        );
-        let spam_entry = LogEntry::new(
-            LogLevel::Info,
-            "spam".to_string(),
-            "test".to_string(),
-        );
+        let normal_entry = LogEntry::new(LogLevel::Info, "normal".to_string(), "test".to_string());
+        let spam_entry = LogEntry::new(LogLevel::Info, "spam".to_string(), "test".to_string());
 
         assert!(filter.should_log(&normal_entry));
         assert!(!filter.should_log(&spam_entry));
@@ -224,21 +208,9 @@ mod tests {
         filter.set_min_level(LogLevel::Debug);
         filter.exclude_target("spam".to_string());
 
-        let debug_entry = LogEntry::new(
-            LogLevel::Debug,
-            "normal".to_string(),
-            "test".to_string(),
-        );
-        let spam_entry = LogEntry::new(
-            LogLevel::Debug,
-            "spam".to_string(),
-            "test".to_string(),
-        );
-        let trace_entry = LogEntry::new(
-            LogLevel::Trace,
-            "normal".to_string(),
-            "test".to_string(),
-        );
+        let debug_entry = LogEntry::new(LogLevel::Debug, "normal".to_string(), "test".to_string());
+        let spam_entry = LogEntry::new(LogLevel::Debug, "spam".to_string(), "test".to_string());
+        let trace_entry = LogEntry::new(LogLevel::Trace, "normal".to_string(), "test".to_string());
 
         assert!(filter.should_log(&debug_entry));
         assert!(!filter.should_log(&spam_entry));

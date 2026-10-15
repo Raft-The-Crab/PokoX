@@ -164,11 +164,13 @@ mod tests {
         let filter = SubscriptionFilter::ByEventType("TestEvent".to_string());
         let subscription = EventSubscription::new(filter);
 
-        let mut metadata = crate::bus::EventMetadata::new("TestEvent".to_string(), "TestSource".to_string());
+        let mut metadata =
+            crate::bus::EventMetadata::new("TestEvent".to_string(), "TestSource".to_string());
         let payload = EventPayload::new(metadata, vec![]);
         assert!(subscription.matches(&payload));
 
-        metadata = crate::bus::EventMetadata::new("OtherEvent".to_string(), "TestSource".to_string());
+        metadata =
+            crate::bus::EventMetadata::new("OtherEvent".to_string(), "TestSource".to_string());
         let payload = EventPayload::new(metadata, vec![]);
         assert!(!subscription.matches(&payload));
     }
@@ -178,13 +180,15 @@ mod tests {
         let filter = SubscriptionFilter::ByMinPriority(EventPriority::High);
         let subscription = EventSubscription::new(filter);
 
-        let mut metadata = crate::bus::EventMetadata::new("TestEvent".to_string(), "TestSource".to_string())
-            .with_priority(EventPriority::Critical);
+        let mut metadata =
+            crate::bus::EventMetadata::new("TestEvent".to_string(), "TestSource".to_string())
+                .with_priority(EventPriority::Critical);
         let payload = EventPayload::new(metadata, vec![]);
         assert!(subscription.matches(&payload));
 
-        metadata = crate::bus::EventMetadata::new("TestEvent".to_string(), "TestSource".to_string())
-            .with_priority(EventPriority::Low);
+        metadata =
+            crate::bus::EventMetadata::new("TestEvent".to_string(), "TestSource".to_string())
+                .with_priority(EventPriority::Low);
         let payload = EventPayload::new(metadata, vec![]);
         assert!(!subscription.matches(&payload));
     }
@@ -195,7 +199,8 @@ mod tests {
         let mut subscription = EventSubscription::new(filter);
         subscription.deactivate();
 
-        let metadata = crate::bus::EventMetadata::new("TestEvent".to_string(), "TestSource".to_string());
+        let metadata =
+            crate::bus::EventMetadata::new("TestEvent".to_string(), "TestSource".to_string());
         let payload = EventPayload::new(metadata, vec![]);
         assert!(!subscription.matches(&payload));
     }

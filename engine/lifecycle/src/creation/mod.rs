@@ -1,6 +1,8 @@
 //! Lifecycle creation phase management
 
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -21,7 +23,7 @@ pub enum CreationPhase {
 }
 
 /// Component creation state
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreationState {
     /// Component ID
     pub component_id: ComponentId,
@@ -33,6 +35,8 @@ pub struct CreationState {
     pub created_at: Option<DateTime<Utc>>,
     /// Failure reason (if failed)
     pub failure_reason: Option<String>,
+    /// State timestamp
+    pub updated_at: DateTime<Utc>,
 }
 
 impl CreationState {
@@ -44,24 +48,28 @@ impl CreationState {
             phase: CreationPhase::NotCreated,
             created_at: None,
             failure_reason: None,
+            updated_at: Utc::now(),
         }
     }
 
     /// Mark as creating
     pub fn mark_creating(&mut self) {
         self.phase = CreationPhase::Creating;
+        self.updated_at = Utc::now();
     }
 
     /// Mark as created
     pub fn mark_created(&mut self) {
         self.phase = CreationPhase::Created;
         self.created_at = Some(Utc::now());
+        self.updated_at = Utc::now();
     }
 
     /// Mark as failed
     pub fn mark_failed(&mut self, reason: String) {
         self.phase = CreationPhase::Failed;
         self.failure_reason = Some(reason);
+        self.updated_at = Utc::now();
     }
 
     /// Check if the component is created
@@ -77,6 +85,16 @@ impl CreationState {
     /// Check if the component failed
     pub fn is_failed(&self) -> bool {
         self.phase == CreationPhase::Failed
+    }
+
+    /// Get the age of the state
+    pub fn age(&self) -> chrono::Duration {
+        Utc::now().signed_duration_since(self.updated_at)
+    }
+
+    /// Check if the state is stale (older than given duration)
+    pub fn is_stale(&self, max_age: chrono::Duration) -> bool {
+        self.age() > max_age
     }
 }
 
@@ -94,16 +112,17 @@ pub enum CreationError {
 }
 
 /// Lifecycle creator for managing component creation
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LifecycleCreator {
     /// Creation states by component ID
-    states: std::collections::HashMap<ComponentId, CreationState>,
+    states: HashMap<ComponentId, CreationState>,
 }
 
 impl LifecycleCreator {
     /// Create a new lifecycle creator
     pub fn new() -> Self {
         Self {
-            states: std::collections::HashMap::new(),
+            states: HashMap::new(),
         }
     }
 
@@ -144,7 +163,11 @@ impl LifecycleCreator {
     }
 
     /// Fail creation of a component
-    pub fn fail_creation(&mut self, component_id: ComponentId, reason: String) -> Result<(), CreationError> {
+    pub fn fail_creation(
+        &mut self,
+        component_id: ComponentId,
+        reason: String,
+    ) -> Result<(), CreationError> {
         let state = self
             .states
             .get_mut(&component_id)
@@ -193,10 +216,43 @@ impl LifecycleCreator {
         (not_created, creating, created, failed)
     }
 
+    /// Get creation statistics
+    pub fn stats(&self) -> CreationStats {
+        let (not_created, creating, created, failed) = self.phase_counts();
+        CreationStats {
+            total: self.count(),
+            not_created,
+            creating,
+            created,
+            failed,
+        }
+    }
+
     /// Clear all registered components
     pub fn clear(&mut self) {
         self.states.clear();
     }
+
+    /// Serialize to JSON
+    pub fn to_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(&self.states)
+    }
+
+    /// Deserialize from JSON
+    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+        let states = serde_json::from_str(json)?;
+        Ok(Self { states })
+    }
+}
+
+/// Creation statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreationStats {
+    pub total: usize,
+    pub not_created: usize,
+    pub creating: usize,
+    pub created: usize,
+    pub failed: usize,
 }
 
 impl Default for LifecycleCreator {
@@ -249,7 +305,10 @@ mod tests {
         let component_id = Uuid::new_v4();
         creator.register(component_id, "TestComponent".to_string());
         creator.start_creation(component_id).unwrap();
-        assert_eq!(creator.get_phase(component_id), Some(CreationPhase::Creating));
+        assert_eq!(
+            creator.get_phase(component_id),
+            Some(CreationPhase::Creating)
+        );
     }
 
     #[test]
@@ -259,7 +318,10 @@ mod tests {
         creator.register(component_id, "TestComponent".to_string());
         creator.start_creation(component_id).unwrap();
         creator.complete_creation(component_id).unwrap();
-        assert_eq!(creator.get_phase(component_id), Some(CreationPhase::Created));
+        assert_eq!(
+            creator.get_phase(component_id),
+            Some(CreationPhase::Created)
+        );
     }
 
     #[test]
@@ -267,7 +329,9 @@ mod tests {
         let mut creator = LifecycleCreator::new();
         let component_id = Uuid::new_v4();
         creator.register(component_id, "TestComponent".to_string());
-        creator.fail_creation(component_id, "Test failure".to_string()).unwrap();
+        creator
+            .fail_creation(component_id, "Test failure".to_string())
+            .unwrap();
         assert_eq!(creator.get_phase(component_id), Some(CreationPhase::Failed));
     }
 
@@ -303,5 +367,34 @@ mod tests {
         assert_eq!(creating, 1);
         assert_eq!(created, 1);
         assert_eq!(failed, 1);
+    }
+
+    #[test]
+    fn test_creation_stats() {
+        let mut creator = LifecycleCreator::new();
+        let id = Uuid::new_v4();
+        creator.register(id, "TestComponent".to_string());
+        creator.start_creation(id).unwrap();
+        let stats = creator.stats();
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.creating, 1);
+    }
+
+    #[test]
+    fn test_state_age() {
+        let mut state = CreationState::new(Uuid::new_v4(), "Test".to_string());
+        state.mark_creating();
+        let age = state.age();
+        assert!(age.num_seconds() >= 0);
+    }
+
+    #[test]
+    fn test_state_serialization() {
+        let mut creator = LifecycleCreator::new();
+        let id = Uuid::new_v4();
+        creator.register(id, "TestComponent".to_string());
+        let json = creator.to_json().unwrap();
+        let restored = LifecycleCreator::from_json(&json).unwrap();
+        assert_eq!(restored.count(), 1);
     }
 }

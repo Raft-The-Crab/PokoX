@@ -8,7 +8,7 @@ use thiserror::Error;
 
 use super::events::EventMetadata;
 use super::functions::FunctionMetadata;
-use super::properties::{PropertyMetadata, DataType, DefaultValue};
+use super::properties::{DataType, DefaultValue, PropertyMetadata};
 use super::types::TypeMetadata;
 
 /// Errors that can occur during metadata validation
@@ -72,25 +72,37 @@ fn validate_no_duplicates(
 
     for type_meta in types {
         if !seen.insert(type_meta.id.clone()) {
-            return Err(ValidationError::DuplicateId(format!("Type: {}", type_meta.id)));
+            return Err(ValidationError::DuplicateId(format!(
+                "Type: {}",
+                type_meta.id
+            )));
         }
     }
 
     for prop_meta in properties {
         if !seen.insert(prop_meta.id.clone()) {
-            return Err(ValidationError::DuplicateId(format!("Property: {}", prop_meta.id)));
+            return Err(ValidationError::DuplicateId(format!(
+                "Property: {}",
+                prop_meta.id
+            )));
         }
     }
 
     for func_meta in functions {
         if !seen.insert(func_meta.id.clone()) {
-            return Err(ValidationError::DuplicateId(format!("Function: {}", func_meta.id)));
+            return Err(ValidationError::DuplicateId(format!(
+                "Function: {}",
+                func_meta.id
+            )));
         }
     }
 
     for event_meta in events {
         if !seen.insert(event_meta.id.clone()) {
-            return Err(ValidationError::DuplicateId(format!("Event: {}", event_meta.id)));
+            return Err(ValidationError::DuplicateId(format!(
+                "Event: {}",
+                event_meta.id
+            )));
         }
     }
 
@@ -105,8 +117,10 @@ fn validate_references(
     events: &[EventMetadata],
 ) -> Result<(), ValidationError> {
     let type_ids: std::collections::HashSet<&str> = types.iter().map(|t| t.id.as_str()).collect();
-    let prop_ids: std::collections::HashSet<&str> = properties.iter().map(|p| p.id.as_str()).collect();
-    let function_ids: std::collections::HashSet<&str> = functions.iter().map(|f| f.id.as_str()).collect();
+    let prop_ids: std::collections::HashSet<&str> =
+        properties.iter().map(|p| p.id.as_str()).collect();
+    let function_ids: std::collections::HashSet<&str> =
+        functions.iter().map(|f| f.id.as_str()).collect();
     let event_ids: std::collections::HashSet<&str> = events.iter().map(|e| e.id.as_str()).collect();
 
     // Check type references
@@ -262,7 +276,10 @@ fn validate_default_matches_type(
     if !is_valid {
         return Err(ValidationError::InvalidDefaultValue {
             data_type: format!("{:?}", data_type),
-            reason: format!("Default value does not match type for property '{}'", prop_id),
+            reason: format!(
+                "Default value does not match type for property '{}'",
+                prop_id
+            ),
         });
     }
 
@@ -293,7 +310,10 @@ fn validate_event_parameters(events: &[EventMetadata]) -> Result<(), ValidationE
 }
 
 /// Validate that a data type is well-formed
-fn validate_data_type_is_valid(data_type: &crate::DataType, context: &str) -> Result<(), ValidationError> {
+fn validate_data_type_is_valid(
+    data_type: &crate::DataType,
+    context: &str,
+) -> Result<(), ValidationError> {
     match data_type {
         crate::DataType::Option(inner) => validate_data_type_is_valid(inner, context)?,
         crate::DataType::Array(inner) => validate_data_type_is_valid(inner, context)?,
@@ -309,8 +329,11 @@ fn validate_data_type_is_valid(data_type: &crate::DataType, context: &str) -> Re
                 context
             )));
         }
-        crate::DataType::Color | crate::DataType::Vec2 | crate::DataType::Vec4
-        | crate::DataType::AABB { min: _, max: _ } | crate::DataType::Timestamp
+        crate::DataType::Color
+        | crate::DataType::Vec2
+        | crate::DataType::Vec4
+        | crate::DataType::AABB { min: _, max: _ }
+        | crate::DataType::Timestamp
         | crate::DataType::Duration => {}
         _ => {}
     }
@@ -326,8 +349,14 @@ mod tests {
     fn test_validate_no_duplicates() {
         let types = vec![TypeMetadata::new("Type1".to_string(), "Type 1".to_string())];
         let properties = vec![PropertyMetadata::new("Prop1".to_string(), DataType::F32)];
-        let functions = vec![FunctionMetadata::new("Func1".to_string(), "Func 1".to_string())];
-        let events = vec![EventMetadata::new("Event1".to_string(), "Event 1".to_string())];
+        let functions = vec![FunctionMetadata::new(
+            "Func1".to_string(),
+            "Func 1".to_string(),
+        )];
+        let events = vec![EventMetadata::new(
+            "Event1".to_string(),
+            "Event 1".to_string(),
+        )];
 
         assert!(validate_metadata(&types, &properties, &functions, &events).is_ok());
     }

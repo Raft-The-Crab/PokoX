@@ -7,7 +7,9 @@ pub mod dispatching;
 pub mod subscription;
 pub mod system;
 
-pub use bus::{EventBus, EventBusConfig, EventBusError, EventId, EventMetadata, EventPayload, EventPriority};
-pub use dispatching::{EventDispatcher, DispatcherConfig, DispatcherError};
-pub use subscription::{EventSubscription, SubscriptionFilter, SubscriptionError};
+pub use bus::{
+    EventBus, EventBusConfig, EventBusError, EventId, EventMetadata, EventPayload, EventPriority,
+};
+pub use dispatching::{DispatcherConfig, DispatcherError, EventDispatcher};
+pub use subscription::{EventSubscription, SubscriptionError, SubscriptionFilter};
 pub use system::{EventSystem, SystemError, SystemEvent, SystemEventKind};

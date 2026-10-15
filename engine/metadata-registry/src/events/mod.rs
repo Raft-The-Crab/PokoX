@@ -98,8 +98,14 @@ mod tests {
     #[test]
     fn test_event_builder() {
         let event = EventMetadata::new("Created".to_string(), "Object Created".to_string())
-            .with_parameter(ParameterMetadata::new("id".to_string(), crate::DataType::Id))
-            .with_parameter(ParameterMetadata::new("timestamp".to_string(), crate::DataType::F64))
+            .with_parameter(ParameterMetadata::new(
+                "id".to_string(),
+                crate::DataType::Id,
+            ))
+            .with_parameter(ParameterMetadata::new(
+                "timestamp".to_string(),
+                crate::DataType::F64,
+            ))
             .with_visibility(Visibility::Public)
             .with_target_type("Object".to_string())
             .with_docs("Emitted when an object is created".to_string());

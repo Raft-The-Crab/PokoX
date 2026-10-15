@@ -1,7 +1,7 @@
 //! System-level event management
 
-use crate::bus::{EventBus, EventPayload, EventMetadata};
-use crate::dispatching::{EventDispatcher, DispatcherConfig};
+use crate::bus::{EventBus, EventMetadata, EventPayload};
+use crate::dispatching::{DispatcherConfig, EventDispatcher};
 use crate::subscription::{EventSubscription, SubscriptionFilter};
 use serde_json;
 use std::collections::HashMap;
@@ -71,10 +71,7 @@ impl SystemEvent {
 
     /// Convert to event payload
     pub fn to_payload(&self) -> Result<EventPayload, Box<dyn std::error::Error>> {
-        let metadata = EventMetadata::new(
-            format!("{:?}", self.kind),
-            self.source.clone(),
-        );
+        let metadata = EventMetadata::new(format!("{:?}", self.kind), self.source.clone());
         let data = serde_json::to_vec(self)?;
         Ok(EventPayload::new(metadata, data))
     }
@@ -91,6 +88,8 @@ pub enum SystemError {
     SerializationError(String),
     #[error("Event deserialization failed: {0}")]
     DeserializationError(String),
+    #[error("Invalid configuration: {0}")]
+    InvalidConfig(String),
 }
 
 /// High-level event system coordinator
@@ -123,19 +122,19 @@ impl EventSystem {
     pub fn with_config(
         bus_config: crate::bus::EventBusConfig,
         dispatcher_config: DispatcherConfig,
-    ) -> Self {
-        let bus = Arc::new(EventBus::new(bus_config));
+    ) -> Result<Self, SystemError> {
+        let bus = Arc::new(EventBus::new(bus_config).map_err(SystemError::InvalidConfig)?);
         let dispatcher = Arc::new(EventDispatcher::with_config(
             Arc::clone(&bus),
             dispatcher_config,
         ));
 
-        Self {
+        Ok(Self {
             bus,
             dispatcher,
             subscriptions: Arc::new(std::sync::Mutex::new(HashMap::new())),
             initialized: true,
-        }
+        })
     }
 
     /// Check if the system is initialized
@@ -180,7 +179,7 @@ impl EventSystem {
         let mut subscriptions = self.subscriptions.lock().unwrap();
         subscriptions
             .remove(&id)
-            .ok_or_else(|| SystemError::NotInitialized)?;
+            .ok_or(SystemError::NotInitialized)?;
 
         Ok(())
     }
@@ -268,5 +267,39 @@ mod tests {
         system.subscribe(filter).unwrap();
         system.clear_subscriptions();
         assert_eq!(system.subscription_count(), 0);
+    }
+
+    #[test]
+    fn test_system_with_config() {
+        let bus_config = crate::bus::EventBusConfig {
+            max_events: 100,
+            worker_threads: 2,
+            max_event_size: 1024,
+            enable_batching: false,
+            batch_size: 50,
+        };
+        let dispatcher_config = DispatcherConfig {
+            max_handlers_per_type: 5,
+            continue_on_error: true,
+        };
+        let system = EventSystem::with_config(bus_config, dispatcher_config).unwrap();
+        assert!(system.is_initialized());
+    }
+
+    #[test]
+    fn test_system_with_invalid_config() {
+        let bus_config = crate::bus::EventBusConfig {
+            max_events: 100,
+            worker_threads: 0,
+            max_event_size: 1024,
+            enable_batching: false,
+            batch_size: 50,
+        };
+        let dispatcher_config = DispatcherConfig {
+            max_handlers_per_type: 5,
+            continue_on_error: true,
+        };
+        let result = EventSystem::with_config(bus_config, dispatcher_config);
+        assert!(result.is_err());
     }
 }

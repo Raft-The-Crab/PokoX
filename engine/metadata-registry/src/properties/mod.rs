@@ -306,11 +306,16 @@ mod tests {
     fn test_property_builder() {
         let prop = PropertyMetadata::new("Position".to_string(), DataType::Vec3)
             .with_default(DefaultValue::Vec3([0.0, 0.0, 0.0]))
-            .with_validator(Validator::Range { min: -1000.0, max: 1000.0 })
+            .with_validator(Validator::Range {
+                min: -1000.0,
+                max: 1000.0,
+            })
             .with_visibility(Visibility::Public)
             .with_replication(ReplicationPolicy::All)
             .with_read_only(false)
-            .with_inspector(InspectorConfig::new("Position".to_string()).with_widget("vector3".to_string()))
+            .with_inspector(
+                InspectorConfig::new("Position".to_string()).with_widget("vector3".to_string()),
+            )
             .with_docs("Object position".to_string());
 
         assert!(prop.default_value.is_some());

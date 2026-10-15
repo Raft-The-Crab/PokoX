@@ -1,6 +1,8 @@
 //! Lifecycle cleanup phase management
 
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -21,7 +23,7 @@ pub enum CleanupPhase {
 }
 
 /// Component cleanup state
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CleanupState {
     /// Component ID
     pub component_id: ComponentId,
@@ -33,6 +35,8 @@ pub struct CleanupState {
     pub cleaned_at: Option<DateTime<Utc>>,
     /// Failure reason (if failed)
     pub failure_reason: Option<String>,
+    /// State timestamp
+    pub updated_at: DateTime<Utc>,
 }
 
 impl CleanupState {
@@ -44,24 +48,28 @@ impl CleanupState {
             phase: CleanupPhase::NotCleaned,
             cleaned_at: None,
             failure_reason: None,
+            updated_at: Utc::now(),
         }
     }
 
     /// Mark as cleaning
     pub fn mark_cleaning(&mut self) {
         self.phase = CleanupPhase::Cleaning;
+        self.updated_at = Utc::now();
     }
 
     /// Mark as cleaned
     pub fn mark_cleaned(&mut self) {
         self.phase = CleanupPhase::Cleaned;
         self.cleaned_at = Some(Utc::now());
+        self.updated_at = Utc::now();
     }
 
     /// Mark as failed
     pub fn mark_failed(&mut self, reason: String) {
         self.phase = CleanupPhase::Failed;
         self.failure_reason = Some(reason);
+        self.updated_at = Utc::now();
     }
 
     /// Check if the component is cleaned
@@ -77,6 +85,16 @@ impl CleanupState {
     /// Check if the component failed
     pub fn is_failed(&self) -> bool {
         self.phase == CleanupPhase::Failed
+    }
+
+    /// Get the age of the state
+    pub fn age(&self) -> chrono::Duration {
+        Utc::now().signed_duration_since(self.updated_at)
+    }
+
+    /// Check if the state is stale
+    pub fn is_stale(&self, max_age: chrono::Duration) -> bool {
+        self.age() > max_age
     }
 }
 
@@ -94,16 +112,17 @@ pub enum CleanupError {
 }
 
 /// Lifecycle cleaner for managing component cleanup
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LifecycleCleaner {
     /// Cleanup states by component ID
-    states: std::collections::HashMap<ComponentId, CleanupState>,
+    states: HashMap<ComponentId, CleanupState>,
 }
 
 impl LifecycleCleaner {
     /// Create a new lifecycle cleaner
     pub fn new() -> Self {
         Self {
-            states: std::collections::HashMap::new(),
+            states: HashMap::new(),
         }
     }
 
@@ -144,7 +163,11 @@ impl LifecycleCleaner {
     }
 
     /// Fail cleanup of a component
-    pub fn fail_cleanup(&mut self, component_id: ComponentId, reason: String) -> Result<(), CleanupError> {
+    pub fn fail_cleanup(
+        &mut self,
+        component_id: ComponentId,
+        reason: String,
+    ) -> Result<(), CleanupError> {
         let state = self
             .states
             .get_mut(&component_id)
@@ -193,10 +216,43 @@ impl LifecycleCleaner {
         (not_cleaned, cleaning, cleaned, failed)
     }
 
+    /// Get cleanup statistics
+    pub fn stats(&self) -> CleanupStats {
+        let (not_cleaned, cleaning, cleaned, failed) = self.phase_counts();
+        CleanupStats {
+            total: self.count(),
+            not_cleaned,
+            cleaning,
+            cleaned,
+            failed,
+        }
+    }
+
     /// Clear all registered components
     pub fn clear(&mut self) {
         self.states.clear();
     }
+
+    /// Serialize to JSON
+    pub fn to_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(&self.states)
+    }
+
+    /// Deserialize from JSON
+    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+        let states = serde_json::from_str(json)?;
+        Ok(Self { states })
+    }
+}
+
+/// Cleanup statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CleanupStats {
+    pub total: usize,
+    pub not_cleaned: usize,
+    pub cleaning: usize,
+    pub cleaned: usize,
+    pub failed: usize,
 }
 
 impl Default for LifecycleCleaner {
@@ -249,7 +305,10 @@ mod tests {
         let component_id = Uuid::new_v4();
         cleaner.register(component_id, "TestComponent".to_string());
         cleaner.start_cleanup(component_id).unwrap();
-        assert_eq!(cleaner.get_phase(component_id), Some(CleanupPhase::Cleaning));
+        assert_eq!(
+            cleaner.get_phase(component_id),
+            Some(CleanupPhase::Cleaning)
+        );
     }
 
     #[test]
@@ -267,7 +326,9 @@ mod tests {
         let mut cleaner = LifecycleCleaner::new();
         let component_id = Uuid::new_v4();
         cleaner.register(component_id, "TestComponent".to_string());
-        cleaner.fail_cleanup(component_id, "Test failure".to_string()).unwrap();
+        cleaner
+            .fail_cleanup(component_id, "Test failure".to_string())
+            .unwrap();
         assert_eq!(cleaner.get_phase(component_id), Some(CleanupPhase::Failed));
     }
 
@@ -303,5 +364,34 @@ mod tests {
         assert_eq!(cleaning, 1);
         assert_eq!(cleaned, 1);
         assert_eq!(failed, 1);
+    }
+
+    #[test]
+    fn test_cleanup_stats() {
+        let mut cleaner = LifecycleCleaner::new();
+        let id = Uuid::new_v4();
+        cleaner.register(id, "TestComponent".to_string());
+        cleaner.start_cleanup(id).unwrap();
+        let stats = cleaner.stats();
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.cleaning, 1);
+    }
+
+    #[test]
+    fn test_state_age() {
+        let mut state = CleanupState::new(Uuid::new_v4(), "Test".to_string());
+        state.mark_cleaning();
+        let age = state.age();
+        assert!(age.num_seconds() >= 0);
+    }
+
+    #[test]
+    fn test_state_serialization() {
+        let mut cleaner = LifecycleCleaner::new();
+        let id = Uuid::new_v4();
+        cleaner.register(id, "TestComponent".to_string());
+        let json = cleaner.to_json().unwrap();
+        let restored = LifecycleCleaner::from_json(&json).unwrap();
+        assert_eq!(restored.count(), 1);
     }
 }

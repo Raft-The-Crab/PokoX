@@ -30,7 +30,7 @@ pub use properties::{
     DataType, DefaultValue, InspectorConfig, PropertyMetadata, ReplicationPolicy, Validator,
 };
 pub use types::{TypeMetadata, Visibility};
-pub use validation::{ValidationError, validate_metadata};
+pub use validation::{validate_metadata, ValidationError};
 
 /// Central metadata registry
 #[derive(Serialize, Deserialize)]
@@ -80,7 +80,10 @@ impl MetadataRegistry {
     }
 
     /// Register a property
-    pub fn register_property(&mut self, prop_meta: PropertyMetadata) -> Result<(), ValidationError> {
+    pub fn register_property(
+        &mut self,
+        prop_meta: PropertyMetadata,
+    ) -> Result<(), ValidationError> {
         if self.properties.contains_key(&prop_meta.id) {
             return Err(ValidationError::DuplicateId(prop_meta.id));
         }
@@ -89,7 +92,10 @@ impl MetadataRegistry {
     }
 
     /// Register multiple properties
-    pub fn register_properties(&mut self, props: Vec<PropertyMetadata>) -> Result<(), ValidationError> {
+    pub fn register_properties(
+        &mut self,
+        props: Vec<PropertyMetadata>,
+    ) -> Result<(), ValidationError> {
         for prop_meta in props {
             self.register_property(prop_meta)?;
         }
@@ -97,7 +103,10 @@ impl MetadataRegistry {
     }
 
     /// Register a function
-    pub fn register_function(&mut self, func_meta: FunctionMetadata) -> Result<(), ValidationError> {
+    pub fn register_function(
+        &mut self,
+        func_meta: FunctionMetadata,
+    ) -> Result<(), ValidationError> {
         if self.functions.contains_key(&func_meta.id) {
             return Err(ValidationError::DuplicateId(func_meta.id));
         }
@@ -106,7 +115,10 @@ impl MetadataRegistry {
     }
 
     /// Register multiple functions
-    pub fn register_functions(&mut self, funcs: Vec<FunctionMetadata>) -> Result<(), ValidationError> {
+    pub fn register_functions(
+        &mut self,
+        funcs: Vec<FunctionMetadata>,
+    ) -> Result<(), ValidationError> {
         for func_meta in funcs {
             self.register_function(func_meta)?;
         }
@@ -373,57 +385,97 @@ impl MetadataRegistry {
             .with_validator(Validator::Length { min: 1, max: 256 })
             .with_visibility(Visibility::Public)
             .with_replication(ReplicationPolicy::All)
-            .with_inspector(InspectorConfig::new("text".to_string()).with_widget("text".to_string()).with_category("General".to_string()));
+            .with_inspector(
+                InspectorConfig::new("text".to_string())
+                    .with_widget("text".to_string())
+                    .with_category("General".to_string()),
+            );
 
         let parent_prop = PropertyMetadata::new("parent".to_string(), DataType::Id)
             .with_default(DefaultValue::Null)
             .with_visibility(Visibility::Public)
             .with_replication(ReplicationPolicy::All)
-            .with_inspector(InspectorConfig::new("object_picker".to_string()).with_widget("object_picker".to_string()).with_category("General".to_string()));
+            .with_inspector(
+                InspectorConfig::new("object_picker".to_string())
+                    .with_widget("object_picker".to_string())
+                    .with_category("General".to_string()),
+            );
 
         let position_prop = PropertyMetadata::new("position".to_string(), DataType::Vec3)
             .with_default(DefaultValue::Vec3([0.0, 0.0, 0.0]))
             .with_visibility(Visibility::Public)
             .with_replication(ReplicationPolicy::All)
-            .with_inspector(InspectorConfig::new("vector3".to_string()).with_widget("vector3".to_string()).with_category("Transform".to_string()));
+            .with_inspector(
+                InspectorConfig::new("vector3".to_string())
+                    .with_widget("vector3".to_string())
+                    .with_category("Transform".to_string()),
+            );
 
         let rotation_prop = PropertyMetadata::new("rotation".to_string(), DataType::Quat)
             .with_default(DefaultValue::Quat([0.0, 0.0, 0.0, 1.0]))
             .with_visibility(Visibility::Public)
             .with_replication(ReplicationPolicy::All)
-            .with_inspector(InspectorConfig::new("quaternion".to_string()).with_widget("quaternion".to_string()).with_category("Transform".to_string()));
+            .with_inspector(
+                InspectorConfig::new("quaternion".to_string())
+                    .with_widget("quaternion".to_string())
+                    .with_category("Transform".to_string()),
+            );
 
         let scale_prop = PropertyMetadata::new("scale".to_string(), DataType::Vec3)
             .with_default(DefaultValue::Vec3([1.0, 1.0, 1.0]))
             .with_visibility(Visibility::Public)
             .with_replication(ReplicationPolicy::All)
-            .with_inspector(InspectorConfig::new("vector3".to_string()).with_widget("vector3".to_string()).with_category("Transform".to_string()));
+            .with_inspector(
+                InspectorConfig::new("vector3".to_string())
+                    .with_widget("vector3".to_string())
+                    .with_category("Transform".to_string()),
+            );
 
         let size_prop = PropertyMetadata::new("size".to_string(), DataType::Vec3)
             .with_default(DefaultValue::Vec3([1.0, 1.0, 1.0]))
-            .with_validator(Validator::Range { min: 0.01, max: 1000.0 })
+            .with_validator(Validator::Range {
+                min: 0.01,
+                max: 1000.0,
+            })
             .with_visibility(Visibility::Public)
             .with_replication(ReplicationPolicy::All)
-            .with_inspector(InspectorConfig::new("vector3".to_string()).with_widget("vector3".to_string()).with_category("Appearance".to_string()));
+            .with_inspector(
+                InspectorConfig::new("vector3".to_string())
+                    .with_widget("vector3".to_string())
+                    .with_category("Appearance".to_string()),
+            );
 
         let color_prop = PropertyMetadata::new("color".to_string(), DataType::Color)
             .with_default(DefaultValue::Vec4([1.0, 1.0, 1.0, 1.0]))
             .with_validator(Validator::ColorRange)
             .with_visibility(Visibility::Public)
             .with_replication(ReplicationPolicy::All)
-            .with_inspector(InspectorConfig::new("color".to_string()).with_widget("color".to_string()).with_category("Appearance".to_string()));
+            .with_inspector(
+                InspectorConfig::new("color".to_string())
+                    .with_widget("color".to_string())
+                    .with_category("Appearance".to_string()),
+            );
 
         let created_at_prop = PropertyMetadata::new("created_at".to_string(), DataType::Timestamp)
             .with_default(DefaultValue::Timestamp(0))
             .with_visibility(Visibility::Internal)
             .with_replication(ReplicationPolicy::All)
-            .with_inspector(InspectorConfig::new("timestamp".to_string()).with_widget("timestamp".to_string()).with_category("Metadata".to_string()));
+            .with_inspector(
+                InspectorConfig::new("timestamp".to_string())
+                    .with_widget("timestamp".to_string())
+                    .with_category("Metadata".to_string()),
+            );
 
-        let modified_at_prop = PropertyMetadata::new("modified_at".to_string(), DataType::Timestamp)
-            .with_default(DefaultValue::Timestamp(0))
-            .with_visibility(Visibility::Internal)
-            .with_replication(ReplicationPolicy::All)
-            .with_inspector(InspectorConfig::new("timestamp".to_string()).with_widget("timestamp".to_string()).with_category("Metadata".to_string()));
+        let modified_at_prop =
+            PropertyMetadata::new("modified_at".to_string(), DataType::Timestamp)
+                .with_default(DefaultValue::Timestamp(0))
+                .with_visibility(Visibility::Internal)
+                .with_replication(ReplicationPolicy::All)
+                .with_inspector(
+                    InspectorConfig::new("timestamp".to_string())
+                        .with_widget("timestamp".to_string())
+                        .with_category("Metadata".to_string()),
+                );
 
         let _ = self.register_property(name_prop);
         let _ = self.register_property(parent_prop);

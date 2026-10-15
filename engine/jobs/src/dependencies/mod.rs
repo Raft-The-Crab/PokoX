@@ -44,7 +44,11 @@ pub enum DependencyCheckResult {
 
 impl JobDependency {
     /// Check if the dependency is satisfied
-    pub fn is_satisfied(&self, completed_jobs: &[JobId], failed_jobs: &[JobId]) -> DependencyCheckResult {
+    pub fn is_satisfied(
+        &self,
+        completed_jobs: &[JobId],
+        failed_jobs: &[JobId],
+    ) -> DependencyCheckResult {
         match self {
             JobDependency::None => DependencyCheckResult::Satisfied,
             JobDependency::Single(job_id) => {
@@ -180,7 +184,10 @@ mod tests {
     fn test_dependency_count() {
         assert_eq!(JobDependency::None.count(), 0);
         assert_eq!(JobDependency::Single(Uuid::new_v4()).count(), 1);
-        assert_eq!(JobDependency::All(vec![Uuid::new_v4(), Uuid::new_v4()]).count(), 2);
+        assert_eq!(
+            JobDependency::All(vec![Uuid::new_v4(), Uuid::new_v4()]).count(),
+            2
+        );
     }
 
     #[test]

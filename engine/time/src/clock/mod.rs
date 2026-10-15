@@ -35,7 +35,7 @@ impl Default for ClockConfig {
             fixed_delta: 1.0 / 60.0, // 60 FPS default
             max_frame_time: 0.2,     // Prevent more than 5 frames of lag
             time_scale: 1.0,
-            min_delta: 0.000001,     // 1 microsecond minimum
+            min_delta: 0.000001, // 1 microsecond minimum
         }
     }
 }

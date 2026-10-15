@@ -2,12 +2,14 @@
 //!
 //! Provides a job scheduling and execution system with priorities, dependencies, and cancellation.
 
-pub mod scheduler;
-pub mod priorities;
-pub mod dependencies;
 pub mod cancellation;
+pub mod dependencies;
+pub mod priorities;
+pub mod scheduler;
 
-pub use scheduler::{JobScheduler, SchedulerConfig, SchedulerError, JobStatus, JobId};
+pub use cancellation::{CancellationError, CancellationToken, JobCancellation};
+pub use dependencies::{DependencyCheckResult, DependencyResolution, JobDependency};
 pub use priorities::{JobPriority, PriorityPolicy};
-pub use dependencies::{JobDependency, DependencyResolution, DependencyCheckResult};
-pub use cancellation::{JobCancellation, CancellationToken, CancellationError};
+pub use scheduler::{
+    JobId, JobScheduler, JobStatus, SchedulerConfig, SchedulerError, SchedulerStats,
+};
