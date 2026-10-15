@@ -175,8 +175,8 @@ fn test_stats_tracking_stress() {
     assert_eq!(stats.free_count, 0);
 
     // Remove half
-    for i in 0..(count / 2) {
-        let _ = registry.remove(handles[i]);
+    for handle in handles.iter().take(count / 2) {
+        let _ = registry.remove(*handle);
     }
 
     let stats = registry.stats();

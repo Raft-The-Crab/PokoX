@@ -7,11 +7,16 @@
 //! - Integration with the IDs/handles system
 
 use glam::{Mat4, Quat, Vec3};
-use poko_ids_handles::{Handle, HandleRegistry, Id, IdType, RegistryConfig, RegistryError, RegistryStats};
+use poko_ids_handles::{
+    Handle, HandleRegistry, Id, IdType, RegistryConfig, RegistryError, RegistryStats,
+};
 use poko_transforms::{Transform, TransformRegistry, TransformRegistryConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
+
+/// Type alias for transform serialization data
+type TransformSerializationData = ([u8; 17], [f32; 3], [f32; 4], [f32; 3]);
 
 /// Configuration for the object registry
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -404,15 +409,13 @@ impl ObjectRegistry {
         )))?;
 
         // Update the handle in the workspace
-        if let Ok(obj) = self.objects.get_mut(handle) {
-            if let Object::Workspace(workspace) = obj {
-                workspace.handle = handle;
-                let id = workspace.data.id;
-                self.id_to_handle.insert(id, handle);
-                self.transforms.add(id, Transform::identity()).ok();
-                self.emit_event(LifecycleEvent::Created { id });
-                self.update_stats();
-            }
+        if let Ok(Object::Workspace(workspace)) = self.objects.get_mut(handle) {
+            workspace.handle = handle;
+            let id = workspace.data.id;
+            self.id_to_handle.insert(id, handle);
+            self.transforms.add(id, Transform::identity()).ok();
+            self.emit_event(LifecycleEvent::Created { id });
+            self.update_stats();
         }
 
         let workspace = self.objects.get(handle)?.clone();
@@ -432,28 +435,26 @@ impl ObjectRegistry {
             .allocate(Object::Model(Model::new(Handle::null(), name.clone())))?;
 
         // Update the handle and set parent
-        if let Ok(obj) = self.objects.get_mut(handle) {
-            if let Object::Model(model) = obj {
-                model.handle = handle;
-                model.data.parent = Some(parent);
-                let id = model.data.id;
-                self.id_to_handle.insert(id, handle);
+        if let Ok(Object::Model(model)) = self.objects.get_mut(handle) {
+            model.handle = handle;
+            model.data.parent = Some(parent);
+            let id = model.data.id;
+            self.id_to_handle.insert(id, handle);
 
-                // Add to parent's children
-                if let Some(parent_handle) = self.id_to_handle.get(&parent) {
-                    if let Ok(parent_obj) = self.objects.get_mut(*parent_handle) {
-                        parent_obj.data_mut().children.push(id);
-                        self.emit_event(LifecycleEvent::ChildAdded {
-                            parent_id: parent,
-                            child_id: id,
-                        });
-                    }
+            // Add to parent's children
+            if let Some(parent_handle) = self.id_to_handle.get(&parent) {
+                if let Ok(parent_obj) = self.objects.get_mut(*parent_handle) {
+                    parent_obj.data_mut().children.push(id);
+                    self.emit_event(LifecycleEvent::ChildAdded {
+                        parent_id: parent,
+                        child_id: id,
+                    });
                 }
-
-                self.transforms.add(id, Transform::identity()).ok();
-                self.emit_event(LifecycleEvent::Created { id });
-                self.update_stats();
             }
+
+            self.transforms.add(id, Transform::identity()).ok();
+            self.emit_event(LifecycleEvent::Created { id });
+            self.update_stats();
         }
 
         let model = self.objects.get(handle)?.clone();
@@ -473,28 +474,26 @@ impl ObjectRegistry {
             .allocate(Object::Part(Part::new(Handle::null(), name.clone())))?;
 
         // Update the handle and set parent
-        if let Ok(obj) = self.objects.get_mut(handle) {
-            if let Object::Part(part) = obj {
-                part.handle = handle;
-                part.data.parent = Some(parent);
-                let id = part.data.id;
-                self.id_to_handle.insert(id, handle);
+        if let Ok(Object::Part(part)) = self.objects.get_mut(handle) {
+            part.handle = handle;
+            part.data.parent = Some(parent);
+            let id = part.data.id;
+            self.id_to_handle.insert(id, handle);
 
-                // Add to parent's children
-                if let Some(parent_handle) = self.id_to_handle.get(&parent) {
-                    if let Ok(parent_obj) = self.objects.get_mut(*parent_handle) {
-                        parent_obj.data_mut().children.push(id);
-                        self.emit_event(LifecycleEvent::ChildAdded {
-                            parent_id: parent,
-                            child_id: id,
-                        });
-                    }
+            // Add to parent's children
+            if let Some(parent_handle) = self.id_to_handle.get(&parent) {
+                if let Ok(parent_obj) = self.objects.get_mut(*parent_handle) {
+                    parent_obj.data_mut().children.push(id);
+                    self.emit_event(LifecycleEvent::ChildAdded {
+                        parent_id: parent,
+                        child_id: id,
+                    });
                 }
-
-                self.transforms.add(id, Transform::identity()).ok();
-                self.emit_event(LifecycleEvent::Created { id });
-                self.update_stats();
             }
+
+            self.transforms.add(id, Transform::identity()).ok();
+            self.emit_event(LifecycleEvent::Created { id });
+            self.update_stats();
         }
 
         let part = self.objects.get(handle)?.clone();
@@ -1350,7 +1349,7 @@ impl ObjectRegistry {
     fn create_snapshot(&self) -> Result<RegistrySnapshot, ObjectModelError> {
         let objects_json = self.serialize_hierarchy()?;
         // Serialize transforms as a vector of (id_bytes, position, rotation, scale)
-        let transforms_data: Vec<([u8; 17], [f32; 3], [f32; 4], [f32; 3])> = self
+        let transforms_data: Vec<TransformSerializationData> = self
             .transforms
             .snapshot()
             .into_iter()
@@ -1377,7 +1376,7 @@ impl ObjectRegistry {
         let snapshot = self.create_snapshot()?;
         self.undo_stack.push(snapshot);
         self.redo_stack.clear(); // Clear redo stack on new action
-        // Enforce max undo depth
+                                 // Enforce max undo depth
         if self.undo_stack.len() > self.config.max_undo_depth {
             self.undo_stack.remove(0);
         }
@@ -1425,7 +1424,7 @@ impl ObjectRegistry {
     ) -> Result<(), ObjectModelError> {
         self.clear();
         self.deserialize_hierarchy(&snapshot.objects_json)?;
-        let transforms_data: Vec<([u8; 17], [f32; 3], [f32; 4], [f32; 3])> =
+        let transforms_data: Vec<TransformSerializationData> =
             serde_json::from_str(&snapshot.transforms_json).map_err(|e| {
                 ObjectModelError::InvalidOperation(format!(
                     "Failed to deserialize transforms: {}",
@@ -1668,7 +1667,7 @@ impl ObjectRegistry {
                     }
                 }
             }
-            total_depth / basic.total_objects
+            total_depth.checked_div(basic.total_objects).unwrap_or(0)
         } else {
             0
         };

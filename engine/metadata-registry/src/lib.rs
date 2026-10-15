@@ -833,10 +833,8 @@ mod tests {
             .register_type(TypeMetadata::new("Type2".to_string(), "Type 2".to_string()))
             .unwrap();
 
-        let result = registry.register_type(TypeMetadata::new(
-            "Type3".to_string(),
-            "Type 3".to_string(),
-        ));
+        let result =
+            registry.register_type(TypeMetadata::new("Type3".to_string(), "Type 3".to_string()));
         assert!(matches!(result, Err(ValidationError::ValidationFailed(_))));
     }
 

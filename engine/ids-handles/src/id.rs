@@ -75,6 +75,8 @@ pub enum IdType {
     Asset = 3,
     /// Package
     Package = 4,
+    /// Sound
+    Sound = 5,
     /// User-defined or custom type
     Custom = 255,
 }
@@ -93,6 +95,7 @@ impl IdType {
             2 => Some(IdType::Part),
             3 => Some(IdType::Asset),
             4 => Some(IdType::Package),
+            5 => Some(IdType::Sound),
             255 => Some(IdType::Custom),
             _ => None,
         }
@@ -396,6 +399,10 @@ mod tests {
     fn test_id_type_from_u8() {
         assert_eq!(IdType::from_u8(0), Some(IdType::Workspace));
         assert_eq!(IdType::from_u8(1), Some(IdType::Model));
+        assert_eq!(IdType::from_u8(2), Some(IdType::Part));
+        assert_eq!(IdType::from_u8(3), Some(IdType::Asset));
+        assert_eq!(IdType::from_u8(4), Some(IdType::Package));
+        assert_eq!(IdType::from_u8(5), Some(IdType::Sound));
         assert_eq!(IdType::from_u8(255), Some(IdType::Custom));
         assert_eq!(IdType::from_u8(99), None);
     }

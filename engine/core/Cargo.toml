@@ -7,14 +7,15 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-poko-ids-handles = { path = "../ids-handles" }
-poko-object-model = { path = "../object-model" }
-poko-transforms = { path = "../transforms" }
-poko-metadata-registry = { path = "../metadata-registry" }
-poko-time = { path = "../time" }
-poko-logging = { path = "../logging" }
-poko-memory = { path = "../memory" }
-poko-errors = { path = "../errors" }
-poko-events = { path = "../events" }
-poko-jobs = { path = "../jobs" }
-poko-lifecycle = { path = "../lifecycle" }
+poko-ids-handles = { workspace = true }
+poko-object-model = { workspace = true }
+poko-transforms = { workspace = true }
+poko-metadata-registry = { workspace = true }
+poko-time = { workspace = true }
+poko-logging = { workspace = true }
+poko-memory = { workspace = true }
+poko-errors = { workspace = true }
+poko-events = { workspace = true }
+poko-jobs = { workspace = true }
+poko-lifecycle = { workspace = true }
+poko-audio = { workspace = true }

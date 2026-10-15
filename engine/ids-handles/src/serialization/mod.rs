@@ -137,6 +137,16 @@ impl IdBatch {
             }
         })
     }
+
+    /// Serialize to bytes using serde
+    pub fn to_bytes(&self) -> Vec<u8> {
+        bincode::serialize(self).unwrap_or_default()
+    }
+
+    /// Deserialize from bytes using serde
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, bincode::Error> {
+        bincode::deserialize(bytes)
+    }
 }
 
 impl Default for IdBatch {

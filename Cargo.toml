@@ -4,6 +4,7 @@ members = [
     "engine/ids-handles", "engine/logging", "engine/memory", "engine/metadata-registry",
     "engine/object-model", "engine/time", "engine/transforms",
     "engine/errors", "engine/events", "engine/jobs", "engine/lifecycle",
+    "engine/audio",
 ]
 resolver = "2"
 
@@ -15,4 +16,30 @@ license = "Proprietary"
 authors = ["Poko Team"]
 
 [workspace.dependencies]
-# Internal crates will be added here as they are created
+# Internal crates
+poko-core = { path = "engine/core" }
+poko-ids-handles = { path = "engine/ids-handles" }
+poko-logging = { path = "engine/logging" }
+poko-memory = { path = "engine/memory" }
+poko-metadata-registry = { path = "engine/metadata-registry" }
+poko-object-model = { path = "engine/object-model" }
+poko-time = { path = "engine/time" }
+poko-transforms = { path = "engine/transforms" }
+poko-errors = { path = "engine/errors" }
+poko-events = { path = "engine/events" }
+poko-jobs = { path = "engine/jobs" }
+poko-lifecycle = { path = "engine/lifecycle" }
+poko-audio = { path = "engine/audio" }
+
+# External dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+glam = { version = "0.27", features = ["serde"] }
+bincode = "1.3"
+rodio = "0.19"
+rand = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+tokio = { version = "1.0", features = ["sync", "rt", "time", "macros"] }
+crossbeam-channel = "0.5"

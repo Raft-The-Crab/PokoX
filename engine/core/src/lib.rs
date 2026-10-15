@@ -10,11 +10,13 @@ pub use poko_ids_handles::{
 
 pub use poko_object_model::{
     DetailedRegistryStats, LifecycleEvent, Model, Object, ObjectData, ObjectModelError,
-    ObjectRegistry, ObjectRegistryConfig, ObjectRegistryStats, ObjectType, Part, RegistryStatistics,
-    Workspace,
+    ObjectRegistry, ObjectRegistryConfig, ObjectRegistryStats, ObjectType, Part,
+    RegistryStatistics, Workspace,
 };
 
-pub use poko_transforms::{Transform, TransformError, TransformRegistry, TransformRegistryConfig, TransformRegistryStats};
+pub use poko_transforms::{
+    Transform, TransformError, TransformRegistry, TransformRegistryConfig, TransformRegistryStats,
+};
 
 pub use poko_metadata_registry::{
     DataType, DefaultValue, EventMetadata, FunctionMetadata, InspectorConfig, MetadataRegistry,
@@ -60,4 +62,14 @@ pub use poko_lifecycle::{
     DestructionError, DestructionPhase, DestructionState, InitializationError, InitializationPhase,
     InitializationState, LifecycleCleaner, LifecycleCreator, LifecycleDestroyer,
     LifecycleInitializer,
+};
+
+pub use poko_audio::{
+    AttenuationModel, AudioBus, AudioBusConfig, AudioBusStats, AudioCapture, AudioCaptureConfig,
+    AudioCaptureStats, AudioCodec, AudioDecoder, AudioEffect, AudioEffectType, AudioEngine,
+    AudioEngineConfig, AudioEngineStats, AudioError, AudioListener, AudioListenerConfig,
+    AudioMixer, AudioStreamInfo, EffectChain, EffectConfig, MixerChannel, MixerConfig, MixerStats,
+    MusicConfig, MusicManager, MusicManagerStats, MusicState, SendEffect, SfxCategory, SfxConfig,
+    SfxManager, SfxManagerStats, SoundSource, SoundSourceHandle, SoundSourceRegistry,
+    SoundSourceRegistryStats, SpatialAudio, SpatialAudioConfig, SpatialAudioStats, VolumeControl,
 };

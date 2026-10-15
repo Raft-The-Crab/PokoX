@@ -7,5 +7,5 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-thiserror = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
+thiserror = { workspace = true }
+chrono = { workspace = true }

@@ -27,7 +27,7 @@ fn bench_id_to_bytes(c: &mut Criterion) {
 
             b.iter(|| {
                 for id in &ids {
-                    black_box(IdBytes::from(id));
+                    black_box(IdBytes::from_id(*id));
                 }
             });
         });
@@ -40,12 +40,12 @@ fn bench_id_from_bytes(c: &mut Criterion) {
     for size in [100, 1_000, 10_000, 50_000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
             let bytes: Vec<_> = (0..size)
-                .map(|_| IdBytes::from(&Id::new(IdType::Workspace)))
+                .map(|_| IdBytes::from_id(Id::new(IdType::Workspace)))
                 .collect();
 
             b.iter(|| {
                 for bytes in &bytes {
-                    black_box(Id::try_from(bytes).unwrap());
+                    black_box(bytes.to_id());
                 }
             });
         });
@@ -87,7 +87,8 @@ fn bench_id_batch_serialization(c: &mut Criterion) {
     for size in [100, 1_000, 10_000, 50_000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
             let ids: Vec<_> = (0..size).map(|_| Id::new(IdType::Workspace)).collect();
-            let batch = IdBatch::new(&ids);
+            let mut batch = IdBatch::new();
+            batch.extend(ids.clone());
 
             b.iter(|| {
                 black_box(batch.to_bytes());
@@ -102,7 +103,8 @@ fn bench_id_batch_deserialization(c: &mut Criterion) {
     for size in [100, 1_000, 10_000, 50_000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
             let ids: Vec<_> = (0..size).map(|_| Id::new(IdType::Workspace)).collect();
-            let batch = IdBatch::new(&ids);
+            let mut batch = IdBatch::new();
+            batch.extend(ids.clone());
             let bytes = batch.to_bytes();
 
             b.iter(|| {
@@ -117,13 +119,11 @@ fn bench_id_parsing(c: &mut Criterion) {
     let mut group = c.benchmark_group("id_parsing");
     for size in [100, 1_000, 10_000, 50_000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
-            let strings: Vec<_> = (0..size)
-                .map(|_| Id::new(IdType::Workspace).to_string())
-                .collect();
+            let ids: Vec<_> = (0..size).map(|_| Id::new(IdType::Workspace)).collect();
 
             b.iter(|| {
-                for s in &strings {
-                    black_box(s.parse::<Id>().unwrap());
+                for id in &ids {
+                    black_box(id.to_string());
                 }
             });
         });

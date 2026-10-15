@@ -454,7 +454,11 @@ impl TransformRegistry {
 
     /// Remove a transform
     pub fn remove(&mut self, id: Id) -> Result<Transform, TransformError> {
-        let was_dirty = self.transforms.get(&id).map(|t| t.is_dirty()).unwrap_or(false);
+        let was_dirty = self
+            .transforms
+            .get(&id)
+            .map(|t| t.is_dirty())
+            .unwrap_or(false);
         self.parent_matrices.remove(&id);
         let result = self
             .transforms
@@ -584,7 +588,11 @@ impl TransformRegistry {
         if !self.transforms.contains_key(&id) {
             return Err(TransformError::TransformNotFound(id));
         }
-        let was_dirty = self.transforms.get(&id).map(|t| t.is_dirty()).unwrap_or(false);
+        let was_dirty = self
+            .transforms
+            .get(&id)
+            .map(|t| t.is_dirty())
+            .unwrap_or(false);
         let is_dirty = transform.is_dirty();
         self.transforms.insert(id, transform);
         self.increment_version();

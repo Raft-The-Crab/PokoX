@@ -1,0 +1,15 @@
+[package]
+name = "poko-audio"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rodio = { workspace = true }
+glam = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+rand = { workspace = true }
+poko-ids-handles = { workspace = true }
+poko-logging = { workspace = true }
+poko-events = { workspace = true }

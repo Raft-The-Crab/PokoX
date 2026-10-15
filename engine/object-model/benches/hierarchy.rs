@@ -221,7 +221,8 @@ fn bench_deserialize_hierarchy(c: &mut Criterion) {
 
             b.iter(|| {
                 let mut registry2 = ObjectRegistry::new();
-                black_box(registry2.deserialize_hierarchy(&json).unwrap());
+                registry2.deserialize_hierarchy(&json).unwrap();
+                black_box(&registry2);
             });
         });
     }

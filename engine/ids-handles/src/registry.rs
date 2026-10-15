@@ -857,7 +857,7 @@ mod tests {
         let h1 = registry.allocate(1).unwrap();
         registry.remove(h1).unwrap();
         let _h2 = registry.allocate(2).unwrap();
-        
+
         assert_eq!(registry.stats().generation_reuses, 1);
     }
 
@@ -868,10 +868,10 @@ mod tests {
             ..Default::default()
         };
         let mut registry: HandleRegistry<i32> = HandleRegistry::with_config(config);
-        
+
         registry.allocate(1).unwrap();
         registry.allocate(2).unwrap();
-        
+
         let result = registry.allocate(3);
         assert!(matches!(result, Err(RegistryError::RegistryFull(_))));
     }

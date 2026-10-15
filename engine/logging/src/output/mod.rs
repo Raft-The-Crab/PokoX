@@ -141,7 +141,7 @@ mod tests {
     #[test]
     fn test_console_output_creation() {
         let output = ConsoleOutput::new();
-        assert_eq!(output.config().include_timestamp, true);
+        assert!(output.config().include_timestamp);
     }
 
     #[test]
