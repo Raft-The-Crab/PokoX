@@ -1,0 +1,45 @@
+# Contract Index
+
+Every source Markdown document has been rewritten into an agent contract with execution directives, acceptance criteria, and preserved requirements.
+
+- [`docs/10-platforms/windows-and-android.md`](docs/10-platforms/windows-and-android.md) — Windows and Android Platform Plan
+- [`docs/05-mute/modules-types-and-stdlib.md`](docs/05-mute/modules-types-and-stdlib.md) — MUTE Modules, Types, and Standard Library
+- [`docs/05-mute/runtime-sandbox-and-errors.md`](docs/05-mute/runtime-sandbox-and-errors.md) — MUTE Runtime, Sandbox, and Diagnostics
+- [`docs/05-mute/language-design.md`](docs/05-mute/language-design.md) — MUTE Language Design
+- [`docs/05-mute/bitstream-and-networking.md`](docs/05-mute/bitstream-and-networking.md) — MUTE Bitstream and Networking
+- [`docs/06-content/publishing-and-dependencies.md`](docs/06-content/publishing-and-dependencies.md) — Publishing, Dependencies, and Content Pipeline
+- [`docs/06-content/project-and-package-formats.md`](docs/06-content/project-and-package-formats.md) — Project and Runtime Package Formats
+- [`docs/03-engine/world-and-entities.md`](docs/03-engine/world-and-entities.md) — World, Entities, Components, and Transforms
+- [`docs/03-engine/cpp-engine-foundation.md`](docs/03-engine/cpp-engine-foundation.md) — C++ Engine Foundation
+- [`docs/03-engine/rendering.md`](docs/03-engine/rendering.md) — Rendering
+- [`docs/03-engine/assets-audio-performance.md`](docs/03-engine/assets-audio-performance.md) — Assets, Audio, and Performance
+- [`docs/03-engine/physics-and-characters.md`](docs/03-engine/physics-and-characters.md) — Physics and Character Movement
+- [`docs/02-architecture/overview.md`](docs/02-architecture/overview.md) — Architecture Overview
+- [`docs/02-architecture/runtime-lifecycle.md`](docs/02-architecture/runtime-lifecycle.md) — Runtime Lifecycle and Frame Loop
+- [`docs/02-architecture/module-boundaries.md`](docs/02-architecture/module-boundaries.md) — Module Boundaries and Ownership
+- [`docs/04-studio/ui-maker.md`](docs/04-studio/ui-maker.md) — Poko Studio UI Maker — Flagship Feature
+- [`docs/04-studio/world-editor.md`](docs/04-studio/world-editor.md) — Poko Studio World Editor
+- [`docs/04-studio/assets-and-prefabs.md`](docs/04-studio/assets-and-prefabs.md) — Asset Browser, Import, and Prefabs
+- [`docs/04-studio/studio-overview.md`](docs/04-studio/studio-overview.md) — Poko Studio Overview
+- [`docs/12-security/anti-cheat-architecture.md`](docs/12-security/anti-cheat-architecture.md) — PokoX Anti-Cheat & Security Architecture (v0.1)
+- [`docs/12-security/security-hardening.md`](docs/12-security/security-hardening.md) — Security Hardening Checklist
+- [`docs/12-security/threat-model.md`](docs/12-security/threat-model.md) — Threat Model
+- [`docs/08-marketplace/commerce-and-entitlements.md`](docs/08-marketplace/commerce-and-entitlements.md) — Marketplace and Real-Money Commerce
+- [`docs/decisions/000-template.md`](docs/decisions/000-template.md) — ADR NNNN: Title
+- [`docs/decisions/open-decisions.md`](docs/decisions/open-decisions.md) — Open Decisions Register
+- [`docs/07-online/publishing-discovery-and-accounts.md`](docs/07-online/publishing-discovery-and-accounts.md) — Accounts, Publishing, and Discovery
+- [`docs/07-online/backend-and-api.md`](docs/07-online/backend-and-api.md) — Backend and API Plan
+- [`docs/07-online/social-and-multiplayer.md`](docs/07-online/social-and-multiplayer.md) — Social and Multiplayer
+- [`docs/09-trust-safety/moderation-and-child-safety.md`](docs/09-trust-safety/moderation-and-child-safety.md) — Trust, Safety, Moderation, and Child Safety
+- [`docs/templates/feature-spec-template.md`](docs/templates/feature-spec-template.md) — Feature: Name
+- [`docs/templates/release-checklist.md`](docs/templates/release-checklist.md) — Release Checklist
+- [`docs/11-engineering/dependencies-and-licenses.md`](docs/11-engineering/dependencies-and-licenses.md) — Dependencies and Licensing Policy
+- [`docs/11-engineering/testing-and-ci.md`](docs/11-engineering/testing-and-ci.md) — Testing and Continuous Integration
+- [`docs/11-engineering/doxygen-formatting-and-code-review.md`](docs/11-engineering/doxygen-formatting-and-code-review.md) — Doxygen, Formatting, and Code Review
+- [`docs/11-engineering/security-checklist.md`](docs/11-engineering/security-checklist.md) — Engineering Security Checklist
+- [`docs/01-product/vision-and-scope.md`](docs/01-product/vision-and-scope.md) — Vision and Scope
+- [`docs/01-product/mvp-and-acceptance.md`](docs/01-product/mvp-and-acceptance.md) — MVP and Acceptance Criteria
+- [`docs/01-product/apps-and-personas.md`](docs/01-product/apps-and-personas.md) — Apps and User Workflows
+- [`docs/roadmap/master-roadmap.md`](docs/roadmap/master-roadmap.md) — Master Roadmap
+- [`docs/roadmap/stage-1-foundation.md`](docs/roadmap/stage-1-foundation.md) — Stage 1 — Repository and Windows Build Foundation
+- [`docs/roadmap/first-vertical-slice.md`](docs/roadmap/first-vertical-slice.md) — First Vertical Slice — Obstacle Course
