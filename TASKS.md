@@ -67,15 +67,16 @@ Statuses: `READY`, `BLOCKED`, `IN_PROGRESS`, `DONE`, `DECISION_REQUIRED`.
 ## Phase 1 — Renderer proof
 
 ### PKX-010 — Pin and integrate renderer dependency
-- Status: `READY`
+- Status: `BLOCKED`
 - Contract: `docs/03-engine/rendering.md`
 - Depends on: PKX-004
+- Blocker: Requires Visual Studio 2022 for Diligent Engine integration. MinGW/GCC 16.2.0 is outside Diligent's supported range. See ADR-001 and ADR-002.
 - Deliver: select and pin a verified Diligent Engine revision; build its minimal sample using the actual toolchain.
 - Acceptance:
-  - [ ] Exact revision and license recorded.
+  - [x] Exact revision and license recorded (v2.5.6, Apache 2.0)
   - [ ] API usage verified against pinned source/headers.
   - [ ] Clean build succeeds.
-  - [ ] Dependency decision recorded if platform/backend choice remains open.
+  - [x] Dependency decision recorded (D3D11 backend, see ADR-002)
 
 ### PKX-011 — Render clear, resize, and present
 - Status: `BLOCKED`

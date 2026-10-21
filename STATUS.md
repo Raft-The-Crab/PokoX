@@ -27,7 +27,7 @@ This document is not evidence that code exists or that any build passes. The cod
 | PKX-002 CMake/test skeleton | DONE | Added CTest integration, created tests/unit/test_main.cpp, registered CoreTest with CTest, created CI workflow with pinned actions. Configure succeeded, build succeeded, CTest executed: `ctest --test-dir build/debug --output-on-failure` - CoreTest passed (0.25 sec). |
 | PKX-003 Core primitives | DONE | Created PokoCore static library with Result/Error type, Logger with RAII, and EntityId (generational handles). Test files organized in subdirectories (tests/unit/core/, tests/unit/logger/, tests/unit/ids/). Production features: 12 basic error codes, console logger with level filtering, EntityId with generational handles, ScopedLogLevel RAII. Non-production features (for later tasks): expanded error codes (40+ across 10 categories), error category system, stack trace placeholder, Logger file output/rotation, JSON/CSV formats, async placeholder, additional ID types (ResourceId, AssetId, TextureId, MeshId, AudioId), EntityPool. Public APIs have Doxygen comments. Unit tests separated into production and non-production test files. Configure succeeded, build succeeded, CTest executed: `ctest --test-dir build/debug --output-on-failure` - CoreTest passed (0.03 sec). |
 | PKX-004 Windows lifecycle | DONE | Created PokoPlatform static library with Win32 window class (WindowsWindow.hpp/cpp). Implements RAII-based window management, message loop (process_messages), resize handling, and orderly shutdown. WindowConfig struct for configuration. Platform-specific code isolated to PokoPlatform module with user32/gdi32 linkage. Tests: tests/unit/platform/test_windows_window.cpp with window creation, dimensions, and resize callback tests. Updated engine/CMakeLists.txt to include platform subdirectory. Configure succeeded, build succeeded, CTest executed: `ctest --test-dir build/debug --output-on-failure` - CoreTest passed (0.03 sec), PlatformTest passed (0.15 sec). |
-| PKX-010 Renderer proof | BLOCKED | Dependency: PKX-004 complete |
+| PKX-010 Renderer proof | BLOCKED | Build environment requires Visual Studio 2022 for Diligent Engine integration. MinGW/GCC 16.2.0 (current environment) is outside Diligent's supported range (GCC 7, 8, or Clang recommended) and has known release build issues. See ADR-001 for full analysis. ADR-002 selected D3D11 as initial backend. Diligent Engine v2.5.6 (Apache 2.0) identified as target revision. Pending: VS2022 installation and Diligent sample build verification. |
 
 ## Latest verified change
 
@@ -40,6 +40,12 @@ This document is not evidence that code exists or that any build passes. The cod
 - Test command: `ctest --test-dir build/debug --output-on-failure`
 - Result: Configure succeeded, build succeeded, CTest executed successfully (CoreTest passed in 0.03 sec, PlatformTest passed in 0.15 sec)
 - All acceptance criteria for PKX-004 satisfied: window lifecycle works on Windows, shutdown releases resources, platform-specific code isolated, tests created and passing
+
+- 2026-10-21: PKX-010 research and documentation
+- Created ADR-001: Build Environment for Diligent Engine Integration (documents VS2022 requirement)
+- Created ADR-002: Initial Renderer Backend Selection (selects D3D11)
+- Updated cmake/Dependencies.cmake with Diligent Engine v2.5.6 information
+- PKX-010 blocked until Visual Studio 2022 is installed and Diligent sample builds successfully
 
 ## Update format
 
