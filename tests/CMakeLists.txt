@@ -33,7 +33,7 @@ set_tests_properties(CoreTest PROPERTIES
 # PokoPlatform test executable (Windows only)
 if(WIN32)
     add_executable(PokoPlatformTests
-        unit/platform/test_windows_window.cpp
+        unit/platform/windows/test_windows_window.cpp
     )
 
     # Link against PokoPlatform and build options

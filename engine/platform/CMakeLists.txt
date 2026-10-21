@@ -16,7 +16,7 @@ target_include_directories(PokoPlatform
 # Platform-specific source files
 target_sources(PokoPlatform
     PRIVATE
-        src/WindowsWindow.cpp
+        src/windows/WindowsWindow.cpp
 )
 
 # Windows-specific libraries
