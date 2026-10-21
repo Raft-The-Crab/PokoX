@@ -38,6 +38,7 @@ void test_error_to_string() {
     assert(err2.to_string().find("Success") != std::string::npos);
 }
 
+// NON-PRODUCTION: Category system tests
 void test_error_category() {
     Error err1(ErrorCode::FileNotFound, "test", ErrorCategory::FileSystem);
     assert(err1.category() == ErrorCategory::FileSystem);
@@ -50,6 +51,7 @@ void test_error_category() {
     assert(str2.find("Network") != std::string::npos);
 }
 
+// NON-PRODUCTION: New error codes tests
 void test_error_new_codes() {
     Error err1(ErrorCode::GraphicsDeviceLost, "GPU crashed");
     assert(err1.code() == ErrorCode::GraphicsDeviceLost);

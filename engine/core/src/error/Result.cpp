@@ -6,8 +6,11 @@
 namespace poko::core {
 
 std::string Error::to_string() const {
+    // PRODUCTION: Simple error name + message
+    // NON-PRODUCTION: Includes category prefix
+    
     static const std::unordered_map<ErrorCode, const char*> error_names = {
-        // General errors
+        // General errors (PRODUCTION)
         {ErrorCode::Success, "Success"},
         {ErrorCode::InvalidArgument, "InvalidArgument"},
         {ErrorCode::OutOfMemory, "OutOfMemory"},
@@ -18,38 +21,38 @@ std::string Error::to_string() const {
         {ErrorCode::Timeout, "Timeout"},
         {ErrorCode::InvalidData, "InvalidData"},
         {ErrorCode::UnknownError, "UnknownError"},
-        // System errors
+        // System errors (NON-PRODUCTION)
         {ErrorCode::PermissionDenied, "PermissionDenied"},
         {ErrorCode::SystemError, "SystemError"},
-        // Network errors
+        // Network errors (NON-PRODUCTION)
         {ErrorCode::NetworkDisconnected, "NetworkDisconnected"},
         {ErrorCode::NetworkTimeout, "NetworkTimeout"},
         {ErrorCode::NetworkUnreachable, "NetworkUnreachable"},
-        // File system errors
+        // File system errors (NON-PRODUCTION)
         {ErrorCode::FileNotFound, "FileNotFound"},
         {ErrorCode::FileInUse, "FileInUse"},
         {ErrorCode::DirectoryNotFound, "DirectoryNotFound"},
         {ErrorCode::PathTooLong, "PathTooLong"},
         {ErrorCode::DiskFull, "DiskFull"},
-        // Graphics errors
+        // Graphics errors (NON-PRODUCTION)
         {ErrorCode::GraphicsDeviceLost, "GraphicsDeviceLost"},
         {ErrorCode::GraphicsInitializationFailed, "GraphicsInitializationFailed"},
         {ErrorCode::ShaderCompilationFailed, "ShaderCompilationFailed"},
-        // Audio errors
+        // Audio errors (NON-PRODUCTION)
         {ErrorCode::AudioDeviceNotFound, "AudioDeviceNotFound"},
         {ErrorCode::AudioInitializationFailed, "AudioInitializationFailed"},
-        // Input errors
+        // Input errors (NON-PRODUCTION)
         {ErrorCode::InputDeviceNotFound, "InputDeviceNotFound"},
         {ErrorCode::InputInitializationFailed, "InputInitializationFailed"},
-        // Scripting errors
+        // Scripting errors (NON-PRODUCTION)
         {ErrorCode::ScriptCompilationFailed, "ScriptCompilationFailed"},
         {ErrorCode::ScriptRuntimeError, "ScriptRuntimeError"},
         {ErrorCode::ScriptSecurityViolation, "ScriptSecurityViolation"},
-        // Asset errors
+        // Asset errors (NON-PRODUCTION)
         {ErrorCode::AssetLoadFailed, "AssetLoadFailed"},
         {ErrorCode::AssetCorrupted, "AssetCorrupted"},
         {ErrorCode::AssetVersionMismatch, "AssetVersionMismatch"},
-        // Validation errors
+        // Validation errors (NON-PRODUCTION)
         {ErrorCode::ValidationFailed, "ValidationFailed"},
         {ErrorCode::SchemaViolation, "SchemaViolation"}
     };
@@ -71,9 +74,12 @@ std::string Error::to_string() const {
     
     auto it = error_names.find(code_);
     if (it != error_names.end()) {
+        // NON-PRODUCTION: Include category prefix
         oss << "[" << category_names.at(category_) << "] " << it->second;
+        // PRODUCTION: oss << it->second;
     } else {
         oss << "[" << category_names.at(category_) << "] UnknownError";
+        // PRODUCTION: oss << "UnknownError";
     }
     
     if (!message_.empty()) {
@@ -84,12 +90,12 @@ std::string Error::to_string() const {
 }
 
 void Error::capture_stack_trace() {
-    // Platform-specific stack trace capture
+    // NON-PRODUCTION: Platform-specific stack trace capture
+    // PRODUCTION: No-op (stack traces add overhead)
     // This is a placeholder - full implementation would use:
     // - Windows: StackWalk64, CaptureStackBackTrace
     // - Linux: backtrace from execinfo.h
     // - macOS: backtrace from execinfo.h
-    // For now, this is a no-op in Stage 1
 }
 
 } // namespace poko::core

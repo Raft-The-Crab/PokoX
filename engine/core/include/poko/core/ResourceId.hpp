@@ -12,6 +12,9 @@ namespace poko::core {
  * A type-safe ID wrapper for identifying resources, assets, etc.
  * Prevents mixing different ID types through type safety.
  * 
+ * NON-PRODUCTION: Enhanced ID types beyond the basic EntityId.
+ * Production uses only EntityId for entities.
+ * 
  * @tparam Tag Type tag to prevent implicit conversion between different ID types
  * @tparam UnderlyingType The underlying integer type
  */

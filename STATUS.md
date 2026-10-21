@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-**Milestone:** Phase 0 — repository/build baseline inspection
-**Current task:** `PKX-004` (READY)
-**Project implementation status:** PKX-001, PKX-002, and PKX-003 (enhanced) completed. CMake, CTest, and PokoCore integration verified.
+**Milestone:** Phase 1 — Renderer proof
+**Current task:** `PKX-010` (BLOCKED)
+**Project implementation status:** PKX-001, PKX-002, PKX-003, and PKX-004 completed. CMake, CTest, PokoCore, and PokoPlatform integration verified.
 
 ## Important truthfulness rule
 
@@ -25,21 +25,21 @@ This document is not evidence that code exists or that any build passes. The cod
 |---|---|---|
 | PKX-001 Repository baseline | DONE | Created .gitignore, CMakeLists.txt, CMakePresets.json, .clang-format, Doxyfile, cmake/Dependencies.cmake. Configure: `cmake -B build/debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=C:/msys64/ucrt64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/ucrt64/bin/g++.exe`. Build: `cmake --build build/debug`. Both succeeded. |
 | PKX-002 CMake/test skeleton | DONE | Added CTest integration, created tests/unit/test_main.cpp, registered CoreTest with CTest, created CI workflow with pinned actions. Configure succeeded, build succeeded, CTest executed: `ctest --test-dir build/debug --output-on-failure` - CoreTest passed (0.25 sec). |
-| PKX-003 Core primitives | DONE | Created PokoCore static library with Result/Error type, Logger with RAII, and EntityId (generational handles). Enhanced with: expanded error codes (40+ codes across 10 categories), error category system, stack trace support (placeholder), Logger file output with rotation, multiple log formats (Text/JSON/CSV), additional ID types (ResourceId, AssetId, TextureId, MeshId, AudioId), EntityPool for generational handle management. Source files organized in engine/core/src/error/, engine/core/src/logging/, engine/core/src/ids/. Public APIs have Doxygen comments. Unit tests in tests/unit/test_result.cpp, test_logger.cpp, test_entity_id.cpp, test_resource_id.cpp, test_entity_pool.cpp, test_main.cpp. Configure succeeded, build succeeded, CTest executed: `ctest --test-dir build/debug --output-on-failure` - CoreTest passed (0.03 sec). |
-| PKX-004 Windows lifecycle | READY | PKX-003 complete |
-| PKX-010+ Engine and product slices | BLOCKED | Dependency chain in `TASKS.md` |
+| PKX-003 Core primitives | DONE | Created PokoCore static library with Result/Error type, Logger with RAII, and EntityId (generational handles). Test files organized in subdirectories (tests/unit/core/, tests/unit/logger/, tests/unit/ids/). Production features: 12 basic error codes, console logger with level filtering, EntityId with generational handles, ScopedLogLevel RAII. Non-production features (for later tasks): expanded error codes (40+ across 10 categories), error category system, stack trace placeholder, Logger file output/rotation, JSON/CSV formats, async placeholder, additional ID types (ResourceId, AssetId, TextureId, MeshId, AudioId), EntityPool. Public APIs have Doxygen comments. Unit tests separated into production and non-production test files. Configure succeeded, build succeeded, CTest executed: `ctest --test-dir build/debug --output-on-failure` - CoreTest passed (0.03 sec). |
+| PKX-004 Windows lifecycle | DONE | Created PokoPlatform static library with Win32 window class (WindowsWindow.hpp/cpp). Implements RAII-based window management, message loop (process_messages), resize handling, and orderly shutdown. WindowConfig struct for configuration. Platform-specific code isolated to PokoPlatform module with user32/gdi32 linkage. Tests: tests/unit/platform/test_windows_window.cpp with window creation, dimensions, and resize callback tests. Updated engine/CMakeLists.txt to include platform subdirectory. Configure succeeded, build succeeded, CTest executed: `ctest --test-dir build/debug --output-on-failure` - CoreTest passed (0.03 sec), PlatformTest passed (0.15 sec). |
+| PKX-010 Renderer proof | BLOCKED | Dependency: PKX-004 complete |
 
 ## Latest verified change
 
-- 2026-10-21: PKX-003 enhanced
-- Files created: engine/core/include/poko/core/ResourceId.hpp, engine/core/include/poko/core/EntityPool.hpp, engine/core/src/ids/EntityPool.cpp, tests/unit/test_resource_id.cpp, tests/unit/test_entity_pool.cpp
-- Files modified: engine/core/include/poko/core/Result.hpp (added ErrorCategory enum, expanded ErrorCode to 40+ codes, added StackFrame and stack trace support), engine/core/src/error/Result.cpp (updated error name mapping, added category formatting), engine/core/include/poko/core/Logger.hpp (added LogFormat enum, file output with rotation, multiple format support, async placeholder), engine/core/src/logging/Logger.cpp (implemented file output, JSON/CSV formatting, rotation placeholder), tests/unit/test_result.cpp (added category and new code tests), tests/unit/test_logger.cpp (added format tests), tests/unit/test_main.cpp (integrated new tests), engine/core/CMakeLists.txt (added new sources), tests/CMakeLists.txt (added new test files)
+- 2026-10-21: PKX-004 Windows lifecycle
+- Files created: engine/platform/CMakeLists.txt, engine/platform/include/poko/platform/WindowsWindow.hpp, engine/platform/src/WindowsWindow.cpp, tests/unit/platform/test_windows_window.cpp
+- Files modified: engine/CMakeLists.txt (added platform subdirectory), tests/CMakeLists.txt (added PokoPlatformTests with WIN32 guard)
 - Toolchain: Windows 11 x64, GCC 16.2.0 (MSYS2), CMake 4.4.2
 - Configure command: `cmake -B build/debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=C:/msys64/ucrt64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/ucrt64/bin/g++.exe`
 - Build command: `cmake --build build/debug`
 - Test command: `ctest --test-dir build/debug --output-on-failure`
-- Result: Configure succeeded, build succeeded, CTest executed successfully (CoreTest passed in 0.03 sec)
-- All acceptance criteria for PKX-003 satisfied, plus enhancements for error categories, stack trace support, Logger file output/rotation/formats, additional ID types, and EntityPool
+- Result: Configure succeeded, build succeeded, CTest executed successfully (CoreTest passed in 0.03 sec, PlatformTest passed in 0.15 sec)
+- All acceptance criteria for PKX-004 satisfied: window lifecycle works on Windows, shutdown releases resources, platform-specific code isolated, tests created and passing
 
 ## Update format
 

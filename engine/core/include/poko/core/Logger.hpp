@@ -23,11 +23,14 @@ enum class LogLevel {
 
 /**
  * @brief Log output format types
+ *
+ * NON-PRODUCTION: JSON and CSV formats for structured logging.
+ * Production uses only Text format.
  */
 enum class LogFormat {
-    Text,    // Human-readable text format
-    JSON,    // JSON format for structured logging
-    CSV      // CSV format for log analysis
+    Text,    // PRODUCTION: Human-readable text format
+    JSON,    // NON-PRODUCTION: JSON format for structured logging
+    CSV      // NON-PRODUCTION: CSV format for log analysis
 };
 
 /**
@@ -71,9 +74,9 @@ public:
     [[nodiscard]] LogFormat format() const noexcept { return format_; }
 
     /**
-     * @brief Enable or disable async logging
+     * @brief Enable or disable async logging (NON-PRODUCTION)
      * @param async Enable async logging if true
-     * @note Async logging uses a background thread - Stage 1 implementation is synchronous
+     * @note Async logging uses a background thread - NOT IMPLEMENTED in Stage 1
      */
     void set_async(bool async) noexcept {
         // Async logging will be implemented in later tasks with proper thread pools
@@ -81,11 +84,12 @@ public:
     }
 
     /**
-     * @brief Enable file output
+     * @brief Enable file output (NON-PRODUCTION)
      * @param filepath Path to the log file
      * @param max_size_mb Maximum file size before rotation (in MB)
      * @param max_files Maximum number of rotated files to keep
      * @return true if file output was enabled successfully
+     * @note Production may use only console output
      */
     bool enable_file_output(const std::string& filepath, 
                             size_t max_size_mb = 10, 

@@ -29,7 +29,7 @@ Statuses: `READY`, `BLOCKED`, `IN_PROGRESS`, `DONE`, `DECISION_REQUIRED`.
   - [x] CI uses pinned/reproducible toolchain/dependency setup.
 
 ### PKX-003 — Core result/error, logging, and stable ID primitives
-- Status: `DONE` (Enhanced)
+- Status: `DONE` (Enhanced with non-production features)
 - Contract: `docs/03-engine/cpp-engine-foundation.md`
 - Depends on: PKX-002
 - Deliver: minimal core primitives with explicit contracts and tests.
@@ -38,32 +38,36 @@ Statuses: `READY`, `BLOCKED`, `IN_PROGRESS`, `DONE`, `DECISION_REQUIRED`.
   - [x] ID uniqueness/stale-handle behavior is tested as appropriate.
   - [x] Public APIs have Doxygen.
   - [x] Unit tests pass.
-- Enhancements:
-  - [x] Expanded error codes to 40+ across 10 categories (General, System, Network, FileSystem, Graphics, Audio, Input, Scripting, Asset, Validation)
-  - [x] Added error category system for semantic grouping
-  - [x] Added stack trace support (placeholder for platform-specific implementation)
-  - [x] Added Logger file output with configurable size limits
-  - [x] Added log rotation (placeholder for full filesystem implementation)
-  - [x] Added multiple log formats (Text, JSON, CSV)
-  - [x] Added async logging placeholder
-  - [x] Added additional ID types (ResourceId, AssetId, TextureId, MeshId, AudioId) with type safety
-  - [x] Added EntityPool for generational handle management with stale-handle detection
+- Production Features:
+  - [x] Result/Error with 12 basic error codes
+  - [x] Logger with console output and level filtering
+  - [x] EntityId with generational handles
+  - [x] ScopedLogLevel RAII helper
+- Non-Production Features (for later tasks):
+  - [x] Expanded error codes to 40+ across 10 categories
+  - [x] Error category system
+  - [x] Stack trace support (placeholder)
+  - [x] Logger file output with rotation
+  - [x] Logger JSON/CSV formats
+  - [x] Logger async logging placeholder
+  - [x] Additional ID types (ResourceId, AssetId, TextureId, MeshId, AudioId)
+  - [x] EntityPool for generational handle management
 
 ### PKX-004 — Windows application lifecycle
-- Status: `READY`
+- Status: `DONE`
 - Contract: `docs/10-platforms/windows-and-android.md`
 - Depends on: PKX-003
 - Deliver: create, run, resize/event-pump, and orderly shutdown of a minimal Windows app.
 - Acceptance:
-  - [ ] Window lifecycle works on the target Windows toolchain.
-  - [ ] Shutdown releases owned resources.
-  - [ ] Platform-specific code is isolated.
-  - [ ] Manual/test verification is recorded.
+  - [x] Window lifecycle works on the target Windows toolchain.
+  - [x] Shutdown releases owned resources.
+  - [x] Platform-specific code is isolated.
+  - [x] Manual/test verification is recorded.
 
 ## Phase 1 — Renderer proof
 
 ### PKX-010 — Pin and integrate renderer dependency
-- Status: `BLOCKED`
+- Status: `READY`
 - Contract: `docs/03-engine/rendering.md`
 - Depends on: PKX-004
 - Deliver: select and pin a verified Diligent Engine revision; build its minimal sample using the actual toolchain.

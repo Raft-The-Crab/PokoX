@@ -10,8 +10,8 @@ namespace poko::core {
 /**
  * @brief Error categories for grouping related errors
  *
- * Provides semantic grouping of errors for better error handling
- * and logging strategies.
+ * NON-PRODUCTION: Enhanced feature for better error handling strategies.
+ * Basic version uses only error codes.
  */
 enum class ErrorCategory {
     General = 0,
@@ -31,10 +31,12 @@ enum class ErrorCategory {
  *
  * These error codes provide explicit, actionable diagnostics for failures.
  * Each error maps to a specific failure condition with a clear recovery path.
+ *
+ * NON-PRODUCTION: Basic version has 12 codes. Enhanced version has 40+ codes.
  */
 enum class ErrorCode {
     Success = 0,
-    // General errors
+    // General errors (PRODUCTION)
     InvalidArgument,
     OutOfMemory,
     OperationFailed,
@@ -44,44 +46,46 @@ enum class ErrorCode {
     Timeout,
     InvalidData,
     UnknownError,
-    // System errors
+    // System errors (NON-PRODUCTION)
     PermissionDenied,
     SystemError,
-    // Network errors
+    // Network errors (NON-PRODUCTION)
     NetworkDisconnected,
     NetworkTimeout,
     NetworkUnreachable,
-    // File system errors
+    // File system errors (NON-PRODUCTION)
     FileNotFound,
     FileInUse,
     DirectoryNotFound,
     PathTooLong,
     DiskFull,
-    // Graphics errors
+    // Graphics errors (NON-PRODUCTION)
     GraphicsDeviceLost,
     GraphicsInitializationFailed,
     ShaderCompilationFailed,
-    // Audio errors
+    // Audio errors (NON-PRODUCTION)
     AudioDeviceNotFound,
     AudioInitializationFailed,
-    // Input errors
+    // Input errors (NON-PRODUCTION)
     InputDeviceNotFound,
     InputInitializationFailed,
-    // Scripting errors
+    // Scripting errors (NON-PRODUCTION)
     ScriptCompilationFailed,
     ScriptRuntimeError,
     ScriptSecurityViolation,
-    // Asset errors
+    // Asset errors (NON-PRODUCTION)
     AssetLoadFailed,
     AssetCorrupted,
     AssetVersionMismatch,
-    // Validation errors
+    // Validation errors (NON-PRODUCTION)
     ValidationFailed,
     SchemaViolation
 };
 
 /**
  * @brief Stack trace entry for error context
+ *
+ * NON-PRODUCTION: Stack trace support - placeholder for platform-specific implementation.
  */
 struct StackFrame {
     std::string function;
@@ -95,17 +99,27 @@ struct StackFrame {
  * Combines an error code with a descriptive message, category,
  * and optional stack trace for debugging.
  * Follows RAII principles and is move-only for efficiency.
+ *
+ * NON-PRODUCTION: Enhanced version includes category and stack trace.
+ * Production version uses only code and message.
  */
 class Error {
 public:
     /**
-     * @brief Construct an error with code and message
+     * @brief Construct an error with code and message (PRODUCTION version)
+     * @param code The error code
+     * @param message Human-readable error description
+     */
+    explicit Error(ErrorCode code = ErrorCode::UnknownError, std::string message = "")
+        : code_(code), message_(std::move(message)), category_(ErrorCategory::General) {}
+
+    /**
+     * @brief Construct an error with code, message, and category (NON-PRODUCTION)
      * @param code The error code
      * @param message Human-readable error description
      * @param category Error category (defaults to General)
      */
-    explicit Error(ErrorCode code = ErrorCode::UnknownError, std::string message = "",
-                   ErrorCategory category = ErrorCategory::General)
+    explicit Error(ErrorCode code, std::string message, ErrorCategory category)
         : code_(code), message_(std::move(message)), category_(category) {}
 
     /**
@@ -121,7 +135,7 @@ public:
     [[nodiscard]] const std::string& message() const noexcept { return message_; }
 
     /**
-     * @brief Get the error category
+     * @brief Get the error category (NON-PRODUCTION)
      * @return The error category
      */
     [[nodiscard]] ErrorCategory category() const noexcept { return category_; }
@@ -133,13 +147,13 @@ public:
     [[nodiscard]] bool is_success() const noexcept { return code_ == ErrorCode::Success; }
 
     /**
-     * @brief Get the stack trace
+     * @brief Get the stack trace (NON-PRODUCTION)
      * @return Vector of stack frames
      */
     [[nodiscard]] const std::vector<StackFrame>& stack_trace() const noexcept { return stack_trace_; }
 
     /**
-     * @brief Set the stack trace
+     * @brief Set the stack trace (NON-PRODUCTION)
      * @param trace Stack trace to set
      */
     void set_stack_trace(std::vector<StackFrame> trace) {
@@ -147,7 +161,7 @@ public:
     }
 
     /**
-     * @brief Capture current stack trace (platform-dependent)
+     * @brief Capture current stack trace (NON-PRODUCTION - platform-dependent)
      */
     void capture_stack_trace();
 
