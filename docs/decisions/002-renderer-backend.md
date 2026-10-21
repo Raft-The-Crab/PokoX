@@ -48,59 +48,56 @@ PKX-010 requires selecting a renderer backend for initial integration. Diligent 
 
 ## Decision
 
-Use Vulkan as the primary renderer backend with OpenGL as a fallback. D3D11/D3D12 are not available with MinGW due to missing ATL headers (atlbase.h). Vulkan is supported and provides modern cross-platform graphics. OpenGL provides a legacy fallback. Both backends are available through Diligent's abstraction layer with MinGW.
+Use OpenGL as the primary renderer backend. Vulkan SDK installed successfully, but Diligent Vulkan backend linking fails with MinGW (linker error at DLL creation). OpenGL provides working MinGW compatibility through GLEW. Vulkan can be added later if Visual Studio 2022 becomes available or if MinGW Vulkan linking issues are resolved.
 
 ## Alternatives considered
 
-### Option A: Vulkan as primary with OpenGL fallback (ACCEPTED)
-- Pros: Modern cross-platform API; MinGW supports Vulkan backend; available with Diligent CMake; future-proof for Linux/Android; OpenGL provides fallback
-- Cons: Requires Vulkan SDK installation; GCC 16.2.0 optimization downgrade warning (O2/O3 → O1)
-
-### Option B: D3D11 primary with Vulkan/OpenGL support
-- Pros: Broad Windows compatibility; user confirmed direct linking works
-- Cons: Not available with MinGW Diligent build (missing atlbase.h/ATL); requires Visual Studio; violates ADR-001 decision to use MinGW
-
-### Option C: OpenGL only
-- Pros: Available with MinGW; broad compatibility
+### Option A: OpenGL as primary (ACCEPTED)
+- Pros: Available with MinGW; builds successfully with Diligent; broad compatibility; immediate path to rendering milestone
 - Cons: Legacy API; inconsistent driver quality; not recommended for new projects
 
-### Option D: Switch to Visual Studio for D3D11
+### Option B: Vulkan as primary
+- Pros: Modern cross-platform API; future-proof for Linux/Android
+- Cons: Linking fails with MinGW (linker error at DLL creation despite SDK installation); GCC 16.2.0 optimization downgrade warning
+
+### Option C: D3D11 primary
+- Pros: Broad Windows compatibility; user confirmed direct linking works
+- Cons: Not available with MinGW Diligent build (missing atlbase.h/ATL); requires Visual Studio
+
+### Option D: Switch to Visual Studio for D3D11 or Vulkan
 - Pros: Full Diligent support; recommended toolchain
 - Cons: Violates ADR-001 decision; requires VS installation
 
 ## Consequences
 
 ### Positive
-- Vulkan provides modern cross-platform graphics API
-- Future-proof for Linux and Android support
-- MinGW/Diligent CMake supports Vulkan backend
-- OpenGL provides fallback for systems without Vulkan
+- OpenGL provides immediate working path with MinGW
+- Broad compatibility across hardware
+- No additional SDK requirements beyond MinGW
 - Single toolchain (MinGW) maintained
+- Diligent OpenGL backend builds successfully
 
 ### Negative / tradeoffs
-- Requires Vulkan SDK installation (not yet installed)
-- GCC 16.2.0 optimization downgrade (O2/O3 → O1) may impact performance
-- D3D11/D3D12 not available with MinGW (could add later with VS2022 if needed)
-- Vulkan driver support varies by hardware
+- Legacy API with inconsistent driver quality
+- Not recommended for new projects by Diligent
+- Will need to switch to Vulkan or D3D11 for production-quality rendering
+- Less modern features than Vulkan/D3D12
 
 ## Security and compatibility impact
 
 - No security impact: backend choice affects performance and features, not security
-- Compatibility: Vulkan supported on Windows 10+; OpenGL provides broader legacy support
-- Future: Can add D3D11/D3D12 later by switching to VS2022 if needed
+- Compatibility: OpenGL provides broadest support across Windows versions
+- Future: Can switch to Vulkan (with VS2022 or MinGW fix) or D3D11 (with VS2022) later
 
 ## Validation
 
-- Install Vulkan SDK
-- Build Diligent Engine with Vulkan support enabled (already configured successfully)
-- Build Diligent Engine with OpenGL support enabled (already configured successfully)
-- Run minimal Vulkan sample (clear/present)
+- Build Diligent Engine with OpenGL support enabled (builds successfully)
+- Build Diligent Engine with Vulkan disabled (linking fails, confirming blocker)
 - Run minimal OpenGL sample (clear/present)
 - Verify compatibility with target Windows 11 hardware
 
 ## Revisit when
 
-- If Vulkan SDK installation or driver issues arise
-- If GCC 16.2.0 optimization downgrade causes performance problems
-- If D3D11/D3D12 features are needed and Visual Studio 2022 becomes available
-- If Vulkan driver support proves insufficient on target hardware
+- If OpenGL driver quality proves insufficient
+- If MinGW Vulkan linking issues are resolved or Visual Studio 2022 becomes available
+- When moving to production-quality rendering requiring modern GPU features
