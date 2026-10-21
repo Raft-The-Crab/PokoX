@@ -7,18 +7,18 @@ Statuses: `READY`, `BLOCKED`, `IN_PROGRESS`, `DONE`, `DECISION_REQUIRED`.
 ## Phase 0 — Repository and build contract
 
 ### PKX-001 — Inspect and normalize repository baseline
-- Status: `READY`
+- Status: `DONE`
 - Contract: `docs/roadmap/stage-1-foundation.md`
 - Depends on: none
 - Deliver: inspect existing tree; establish CMake/C++20 conventions, `.gitignore`, formatting, docs, and test entry points without overwriting working code.
 - Acceptance:
-  - [ ] Repository state and toolchain requirements documented.
-  - [ ] Clean configure/build command is documented and reproducible where toolchain is available.
-  - [ ] Existing work preserved; no speculative engine feature added.
-  - [ ] `STATUS.md` records exact observed state.
+  - [x] Repository state and toolchain requirements documented.
+  - [x] Clean configure/build command is documented and reproducible where toolchain is available.
+  - [x] Existing work preserved; no speculative engine feature added.
+  - [x] `STATUS.md` records exact observed state.
 
 ### PKX-002 — Establish CMake and automated test skeleton
-- Status: `BLOCKED`
+- Status: `READY`
 - Contract: `docs/roadmap/stage-1-foundation.md`
 - Depends on: PKX-001
 - Deliver: root CMake project, presets where appropriate, CTest registration, minimal test target, and CI workflow if supported by repository.

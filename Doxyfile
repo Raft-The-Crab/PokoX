@@ -1,0 +1,52 @@
+# Doxyfile configuration for PokoX
+# Generated for PKX-001
+
+PROJECT_NAME           = "PokoX"
+PROJECT_NUMBER         = 0.1.0
+PROJECT_BRIEF          = "PokoX Game Engine and Platform"
+
+OUTPUT_DIRECTORY       = docs/html
+
+INPUT                  = engine apps
+INPUT_ENCODING         = UTF-8
+RECURSIVE              = YES
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = NO
+EXTRACT_LOCAL_METHODS  = NO
+EXTRACT_ANON_NSPACES   = NO
+
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+
+HAVE_DOT               = NO
+UML_LOOK               = NO
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = NO
+
+GENERATE_HTML          = YES
+HTML_OUTPUT             = html
+HTML_FILE_EXTENSION    = .html
+
+GENERATE_XML           = YES
+XML_OUTPUT             = xml
+XML_SCHEMA             = NO
+
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_DOCBOOK       = NO
+
+CLASS_DIAGRAMS         = NO
+HAVE_DOT               = NO
+COLLABORATION_GRAPH    = NO
+INCLUDED_BY_GRAPH      = NO
+INCLUDE_GRAPH          = NO
+REFERENCED_BY_RELATION = NO
+REFERENCE_RELATION     = NO
+SOURCE_BROWSER         = NO

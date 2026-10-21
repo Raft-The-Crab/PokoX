@@ -1,0 +1,78 @@
+# Build directories
+build/
+out/
+cmake-build-*/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+!cmake/*.cmake
+
+# Visual Studio
+.vs/
+.vscode/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Compiled files
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+*.lib
+*.a
+*.dll
+*.so
+*.dylib
+*.class
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Generated files
+*.generated.*
+gen/
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+Testing/
+CTestTestfile.cmake
+_deps/
+
+# Third-party
+third_party/*/build/
+third_party/*/build*/
+
+# Documentation
+docs/html/
+docs/xml/
+docs/latex/
+
+# Logs
+*.log
+
+# Devin client-side (not part of PokoX project)
+.devin/

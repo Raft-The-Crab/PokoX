@@ -51,6 +51,25 @@ Do not mark design-only work as implementation complete.
 - `docs/roadmap/` — staged delivery contracts.
 - `docs/decisions/` — unresolved decisions and ADRs.
 
+## Build commands
+
+**Toolchain requirements:**
+- CMake 3.24+
+- C++20 compatible compiler (GCC 16.2.0 tested, Visual Studio 2022 preferred)
+- Windows 11 x64
+
+**Configure (Debug):**
+```bash
+cmake -B build/debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=C:/msys64/ucrt64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/ucrt64/bin/g++.exe
+```
+
+**Build:**
+```bash
+cmake --build build/debug
+```
+
+**Note:** Adjust compiler paths based on your toolchain. Visual Studio 2022 is the documented preferred toolchain; the above uses GCC as a fallback for environments without VS2022.
+
 ## Definition of done for any code task
 
 A task is complete only when:
