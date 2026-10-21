@@ -36,58 +36,71 @@ PKX-010 requires selecting a renderer backend for initial integration. Diligent 
 - "Diligent renderer" specified but backend not pinned
 - First milestone: build and test basic rendering (clear, present, triangle)
 
+**Build environment reality (ADR-001):**
+- Using MinGW/GCC 16.2.0 (MSYS2) based on user confirmation
+- CMake configuration of Diligent Core shows:
+  - D3D11_SUPPORTED: FALSE (atlbase.h not found - requires Visual Studio ATL)
+  - D3D12_SUPPORTED: FALSE (same issue)
+  - GL_SUPPORTED: TRUE
+  - VULKAN_SUPPORTED: TRUE
+- GCC 16.2.0 warning: "gcc 9.0 and above seemingly produce invalid binary code with O2 and O3 optimization levels. Optimization in release configurations will be downgraded to O1. It is strongly recommended to use clang."
+- User confirmed D3D11 linking works (`-ld3d11 -ldxgi -ld3dcompiler`) but Diligent's CMake cannot build D3D11 backends without ATL headers
+
 ## Decision
 
-Use Direct3D 11 as the initial renderer backend for Windows. This provides the broadest compatibility and simplest integration path for the first rendering milestone.
+Use Vulkan as the primary renderer backend with OpenGL as a fallback. D3D11/D3D12 are not available with MinGW due to missing ATL headers (atlbase.h). Vulkan is supported and provides modern cross-platform graphics. OpenGL provides a legacy fallback. Both backends are available through Diligent's abstraction layer with MinGW.
 
 ## Alternatives considered
 
-### Option A: Direct3D 11 (ACCEPTED)
-- Pros: Broad Windows support (7+), mature and stable, simpler API than D3D12/Vulkan, minimal driver issues, Diligent has extensive D3D11 samples
-- Cons: Less modern than D3D12/Vulkan, some performance overhead compared to low-level APIs
+### Option A: Vulkan as primary with OpenGL fallback (ACCEPTED)
+- Pros: Modern cross-platform API; MinGW supports Vulkan backend; available with Diligent CMake; future-proof for Linux/Android; OpenGL provides fallback
+- Cons: Requires Vulkan SDK installation; GCC 16.2.0 optimization downgrade warning (O2/O3 → O1)
 
-### Option B: Direct3D 12
-- Pros: Modern low-level API, better performance on modern hardware, explicit control
-- Cons: Windows 10+ only (though project targets Windows 11), higher complexity, steeper learning curve, more error-prone
+### Option B: D3D11 primary with Vulkan/OpenGL support
+- Pros: Broad Windows compatibility; user confirmed direct linking works
+- Cons: Not available with MinGW Diligent build (missing atlbase.h/ATL); requires Visual Studio; violates ADR-001 decision to use MinGW
 
-### Option C: Vulkan
-- Pros: Cross-platform, modern, explicit control
-- Cons: Requires driver support validation, higher complexity, Windows Vulkan drivers vary in quality
+### Option C: OpenGL only
+- Pros: Available with MinGW; broad compatibility
+- Cons: Legacy API; inconsistent driver quality; not recommended for new projects
 
-### Option D: WebGPU
-- Pros: Modern API, cross-platform future
-- Cons: Very new (added to Diligent in 2024), desktop WebGPU still emerging, less proven for production games
+### Option D: Switch to Visual Studio for D3D11
+- Pros: Full Diligent support; recommended toolchain
+- Cons: Violates ADR-001 decision; requires VS installation
 
 ## Consequences
 
 ### Positive
-- Fastest path to first rendering milestone
-- Minimal driver compatibility issues
-- Simplest error handling and debugging
-- Matches Diligent's sample patterns
-- Can switch to D3D12 or Vulkan later if needed (Diligent makes backend switching relatively painless)
+- Vulkan provides modern cross-platform graphics API
+- Future-proof for Linux and Android support
+- MinGW/Diligent CMake supports Vulkan backend
+- OpenGL provides fallback for systems without Vulkan
+- Single toolchain (MinGW) maintained
 
 ### Negative / tradeoffs
-- Not the most modern or performant API
-- May need to add D3D12 or Vulkan later for advanced features (ray tracing, compute shaders)
-- Legacy API (though still widely used and supported)
+- Requires Vulkan SDK installation (not yet installed)
+- GCC 16.2.0 optimization downgrade (O2/O3 → O1) may impact performance
+- D3D11/D3D12 not available with MinGW (could add later with VS2022 if needed)
+- Vulkan driver support varies by hardware
 
 ## Security and compatibility impact
 
 - No security impact: backend choice affects performance and features, not security
-- Compatibility: D3D11 works on all Windows 11 systems
-- Future: Backend switching requires render API changes but Diligent's abstraction layer reduces impact
+- Compatibility: Vulkan supported on Windows 10+; OpenGL provides broader legacy support
+- Future: Can add D3D11/D3D12 later by switching to VS2022 if needed
 
 ## Validation
 
-- Build Diligent Engine with D3D11 support enabled
-- Run minimal D3D11 sample (clear/present)
+- Install Vulkan SDK
+- Build Diligent Engine with Vulkan support enabled (already configured successfully)
+- Build Diligent Engine with OpenGL support enabled (already configured successfully)
+- Run minimal Vulkan sample (clear/present)
+- Run minimal OpenGL sample (clear/present)
 - Verify compatibility with target Windows 11 hardware
-- Test on at least one Windows 11 machine
 
 ## Revisit when
 
-- When performance profiling shows D3D11 as a bottleneck
-- When D3D12 or Vulkan features are needed (ray tracing, advanced compute)
-- When Windows 7/8 support is dropped from requirements
-- When WebGPU desktop support matures and becomes the preferred cross-platform backend
+- If Vulkan SDK installation or driver issues arise
+- If GCC 16.2.0 optimization downgrade causes performance problems
+- If D3D11/D3D12 features are needed and Visual Studio 2022 becomes available
+- If Vulkan driver support proves insufficient on target hardware

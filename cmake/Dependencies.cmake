@@ -5,12 +5,16 @@
 # Repository: https://github.com/DiligentGraphics/DiligentEngine
 # License: Apache 2.0
 # Selected Revision: v2.5.6 (September 2024)
-# Note: Integration pending Visual Studio 2022 setup (see ADR-001)
-# Windows backend options: D3D11, D3D12, Vulkan, OpenGL, WebGPU
-# Recommended initial backend: D3D11 (broadest Windows support)
+# Build Toolchain: MinGW/GCC 16.2.0 (MSYS2) - see ADR-001
+# Backends: Vulkan (primary), OpenGL (fallback)
+# Note: D3D11/D3D12 not available with MinGW (missing ATL headers)
+# Linking: -lvulkan (Vulkan), -lopengl32 (OpenGL)
+# Warning: GCC 16.2.0 optimization downgrade (O2/O3 → O1) in release builds
 
 # Third-party dependencies will be added here as needed
 # Initial Stage 1 does not require external dependencies beyond the build system
 
 message(STATUS "PokoX Dependencies: No external dependencies required for Stage 1")
-message(STATUS "PokoX Renderer: Diligent Engine v2.5.6 (Apache 2.0) - integration pending VS2022 setup")
+message(STATUS "PokoX Renderer: Diligent Engine v2.5.6 (Apache 2.0) - integration pending")
+message(STATUS "Renderer Backends: Vulkan (primary), OpenGL (fallback)")
+message(STATUS "D3D11/D3D12: Not available with MinGW (requires Visual Studio ATL)")
