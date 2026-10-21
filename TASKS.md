@@ -29,20 +29,20 @@ Statuses: `READY`, `BLOCKED`, `IN_PROGRESS`, `DONE`, `DECISION_REQUIRED`.
   - [x] CI uses pinned/reproducible toolchain/dependency setup.
 
 ### PKX-003 — Core result/error, logging, and stable ID primitives
-- Status: `READY`
+- Status: `DONE`
 - Contract: `docs/03-engine/cpp-engine-foundation.md`
 - Depends on: PKX-002
 - Deliver: minimal core primitives with explicit contracts and tests.
 - Acceptance:
-  - [ ] Invalid/error states are explicit and testable.
-  - [ ] ID uniqueness/stale-handle behavior is tested as appropriate.
-  - [ ] Public APIs have Doxygen.
-  - [ ] Unit tests pass.
+  - [x] Invalid/error states are explicit and testable.
+  - [x] ID uniqueness/stale-handle behavior is tested as appropriate.
+  - [x] Public APIs have Doxygen.
+  - [x] Unit tests pass.
 
 ### PKX-004 — Windows application lifecycle
-- Status: `BLOCKED`
+- Status: `READY`
 - Contract: `docs/10-platforms/windows-and-android.md`
-- Depends on: PKX-002, PKX-003
+- Depends on: PKX-003
 - Deliver: create, run, resize/event-pump, and orderly shutdown of a minimal Windows app.
 - Acceptance:
   - [ ] Window lifecycle works on the target Windows toolchain.

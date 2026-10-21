@@ -76,6 +76,11 @@ ctest --test-dir build/debug --output-on-failure
 
 **Note:** Adjust compiler paths based on your toolchain. Visual Studio 2022 is the documented preferred toolchain; the above uses GCC as a fallback for environments without VS2022.
 
+**Current Implementation:**
+- PKX-001: Repository baseline with CMake, CTest, formatting, and Doxygen configuration
+- PKX-002: CMake and automated test skeleton with CTest integration
+- PKX-003: PokoCore library with Result/Error type, Logger with RAII, and EntityId (generational handles)
+
 ## Definition of done for any code task
 
 A task is complete only when:

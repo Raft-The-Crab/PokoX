@@ -9,19 +9,23 @@
     {
       "name": "windows-debug",
       "displayName": "Windows Debug",
-      "description": "Debug configuration for Windows",
+      "description": "Debug configuration for Windows with MinGW",
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "C:/msys64/ucrt64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/ucrt64/bin/g++.exe"
       }
     },
     {
       "name": "windows-release",
       "displayName": "Windows Release",
-      "description": "Release configuration for Windows",
+      "description": "Release configuration for Windows with MinGW",
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "C:/msys64/ucrt64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/ucrt64/bin/g++.exe"
       }
     }
   ],

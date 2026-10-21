@@ -19,6 +19,9 @@ project(PokoX
     LANGUAGES CXX
 )
 
+# Disable automatic DLL export for executables on Windows
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+
 # Set C++20 standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
