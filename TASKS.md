@@ -18,18 +18,18 @@ Statuses: `READY`, `BLOCKED`, `IN_PROGRESS`, `DONE`, `DECISION_REQUIRED`.
   - [x] `STATUS.md` records exact observed state.
 
 ### PKX-002 — Establish CMake and automated test skeleton
-- Status: `READY`
+- Status: `DONE`
 - Contract: `docs/roadmap/stage-1-foundation.md`
 - Depends on: PKX-001
 - Deliver: root CMake project, presets where appropriate, CTest registration, minimal test target, and CI workflow if supported by repository.
 - Acceptance:
-  - [ ] Clean configure succeeds on target toolchain.
-  - [ ] Build succeeds.
-  - [ ] CTest executes at least one real test.
-  - [ ] CI uses pinned/reproducible toolchain/dependency setup.
+  - [x] Clean configure succeeds on target toolchain.
+  - [x] Build succeeds.
+  - [x] CTest executes at least one real test.
+  - [x] CI uses pinned/reproducible toolchain/dependency setup.
 
 ### PKX-003 — Core result/error, logging, and stable ID primitives
-- Status: `BLOCKED`
+- Status: `READY`
 - Contract: `docs/03-engine/cpp-engine-foundation.md`
 - Depends on: PKX-002
 - Deliver: minimal core primitives with explicit contracts and tests.

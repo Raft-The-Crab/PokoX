@@ -68,6 +68,12 @@ cmake -B build/debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=C:/msys64/ucrt6
 cmake --build build/debug
 ```
 
+**Run Tests:**
+```bash
+ctest --test-dir build/debug --output-on-failure
+```
+
+
 **Note:** Adjust compiler paths based on your toolchain. Visual Studio 2022 is the documented preferred toolchain; the above uses GCC as a fallback for environments without VS2022.
 
 ## Definition of done for any code task

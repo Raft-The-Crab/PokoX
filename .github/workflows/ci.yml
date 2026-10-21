@@ -10,7 +10,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11bd71901bb5b17202b0132d3d4595fb7b7e69b5  # v4.2.2, pinned for supply-chain security
 
     - name: Install dependencies
       run: |
@@ -32,7 +32,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11bd71901bb5b17202b0132d3d4595fb7b7e69b5  # v4.2.2, pinned for supply-chain security
 
     - name: Install clang-format
       run: |
@@ -41,4 +41,10 @@ jobs:
 
     - name: Check formatting
       run: |
-        find . -name '*.cpp' -o -name '*.h' | xargs clang-format --dry-run --Werror
+        echo "Checking C++ formatting..."
+        FILES=$(find . -name '*.cpp' -o -name '*.h' 2>/dev/null || true)
+        if [ -n "$FILES" ]; then
+          echo "$FILES" | xargs clang-format --dry-run --Werror
+        else
+          echo "No C++ files found, skipping format check"
+        fi

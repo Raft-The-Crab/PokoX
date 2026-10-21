@@ -59,6 +59,9 @@ add_subdirectory(tests)
 # Enable testing
 enable_testing()
 
+# Add test discovery
+include(CTest)
+
 # Print configuration summary
 message(STATUS "PokoX Version: ${PROJECT_VERSION}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")

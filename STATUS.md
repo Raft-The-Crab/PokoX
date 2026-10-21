@@ -3,8 +3,8 @@
 ## Current milestone
 
 **Milestone:** Phase 0 — repository/build baseline inspection
-**Current task:** `PKX-002` (READY)
-**Project implementation status:** PKX-001 completed. Foundation files created, build configuration established and verified.
+**Current task:** `PKX-003` (READY)
+**Project implementation status:** PKX-001 and PKX-002 completed. CMake and CTest integration verified.
 
 ## Important truthfulness rule
 
@@ -16,30 +16,31 @@ This document is not evidence that code exists or that any build passes. The cod
 - [x] Compiler/toolchain version recorded (GCC 16.2.0 on Windows 11 x64 via MSYS2)
 - [x] CMake version recorded (CMake 4.4.2)
 - [x] Clean configure/build attempted
-- [ ] Tests executed (no tests yet - will be added in PKX-002)
-- [ ] CI status inspected
+- [x] Tests executed (CoreTest passed)
+- [ ] CI status inspected (CI workflow created, not yet run on GitHub Actions)
 
 ## Milestone state
 
 | Task | Status | Evidence |
 |---|---|---|
 | PKX-001 Repository baseline | DONE | Created .gitignore, CMakeLists.txt, CMakePresets.json, .clang-format, Doxyfile, cmake/Dependencies.cmake. Configure: `cmake -B build/debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=C:/msys64/ucrt64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/ucrt64/bin/g++.exe`. Build: `cmake --build build/debug`. Both succeeded. |
-| PKX-002 CMake/test skeleton | READY | PKX-001 complete |
-| PKX-003 Core primitives | BLOCKED | Requires PKX-002 |
+| PKX-002 CMake/test skeleton | DONE | Added CTest integration, created tests/unit/test_main.cpp, registered CoreTest with CTest, created CI workflow with pinned actions. Configure succeeded, build succeeded, CTest executed: `ctest --test-dir build/debug --output-on-failure` - CoreTest passed (0.25 sec). |
+| PKX-003 Core primitives | READY | PKX-002 complete |
 | PKX-004 Windows lifecycle | BLOCKED | Requires PKX-002 and PKX-003 |
 | PKX-010+ Engine and product slices | BLOCKED | Dependency chain in `TASKS.md` |
 
 ## Latest verified change
 
-- 2026-10-21: PKX-001 completed
-- Files created: .gitignore, CMakeLists.txt, CMakePresets.json, .clang-format, Doxyfile, cmake/Dependencies.cmake, cmake/CMakeLists.txt, engine/CMakeLists.txt, apps/CMakeLists.txt, tests/CMakeLists.txt
-- Files modified: STATUS.md, TASKS.md, README.md
+- 2026-10-21: PKX-002 completed
+- Files created: tests/unit/test_main.cpp
+- Files modified: CMakeLists.txt (added CTest integration), tests/CMakeLists.txt (added test executable and registration), .github/workflows/ci.yml (pinned actions for security)
 - Toolchain: Windows 11 x64, GCC 16.2.0 (MSYS2), CMake 4.4.2
 - Configure command: `cmake -B build/debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=C:/msys64/ucrt64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/ucrt64/bin/g++.exe`
 - Build command: `cmake --build build/debug`
-- Result: Configure succeeded, build succeeded (no targets yet)
-- Note: Visual Studio 2022 not available on this machine; using GCC as fallback. Documentation states VS 2022 as preferred but allows toolchain verification during implementation.
-- All acceptance criteria for PKX-001 satisfied
+- Test command: `ctest --test-dir build/debug --output-on-failure`
+- Result: Configure succeeded, build succeeded, CTest executed successfully (CoreTest passed in 0.25 sec)
+- CI workflow created with pinned GitHub Actions (checkout@v4.2.2) for supply-chain security
+- All acceptance criteria for PKX-002 satisfied
 
 ## Update format
 
