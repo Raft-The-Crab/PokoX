@@ -21,4 +21,7 @@ target_sources(PokoCore PRIVATE
     src/logging/Logger.cpp
     include/poko/core/EntityId.hpp
     src/ids/EntityId.cpp
+    include/poko/core/EntityPool.hpp
+    src/ids/EntityPool.cpp
+    include/poko/core/ResourceId.hpp
 )

@@ -9,6 +9,8 @@ add_executable(PokoCoreTests
     unit/test_result.cpp
     unit/test_logger.cpp
     unit/test_entity_id.cpp
+    unit/test_resource_id.cpp
+    unit/test_entity_pool.cpp
 )
 
 # Link against PokoCore and build options

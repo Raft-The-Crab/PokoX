@@ -5,12 +5,15 @@ void test_result_success();
 void test_result_error();
 void test_result_value_or();
 void test_error_to_string();
+void test_error_category();
+void test_error_new_codes();
 void test_result_string_type();
 
 void test_logger_singleton();
 void test_logger_level_filtering();
 void test_scoped_log_level();
 void test_logger_thread_safety();
+void test_logger_formats();
 
 void test_entity_id_default();
 void test_entity_id_construct();
@@ -20,6 +23,23 @@ void test_entity_id_hash();
 void test_entity_id_unordered_map();
 void test_entity_id_invalid_static();
 
+void test_resource_id_default();
+void test_resource_id_construct();
+void test_resource_id_equality();
+void test_asset_id_type_safety();
+void test_texture_id();
+void test_mesh_id();
+void test_audio_id();
+void test_resource_id_unordered_map();
+void test_resource_id_invalid_static();
+
+void test_entity_pool_allocate();
+void test_entity_pool_deallocate();
+void test_entity_pool_stale_handle();
+void test_entity_pool_capacity();
+void test_entity_pool_full();
+void test_entity_pool_double_deallocate();
+
 int main() {
     std::cout << "Running PokoCore Tests..." << std::endl;
     
@@ -28,6 +48,8 @@ int main() {
     test_result_error();
     test_result_value_or();
     test_error_to_string();
+    test_error_category();
+    test_error_new_codes();
     test_result_string_type();
     std::cout << "Result tests passed" << std::endl;
     
@@ -36,6 +58,7 @@ int main() {
     test_logger_level_filtering();
     test_scoped_log_level();
     test_logger_thread_safety();
+    test_logger_formats();
     std::cout << "Logger tests passed" << std::endl;
     
     // EntityId tests
@@ -47,6 +70,27 @@ int main() {
     test_entity_id_unordered_map();
     test_entity_id_invalid_static();
     std::cout << "EntityId tests passed" << std::endl;
+    
+    // ResourceId tests
+    test_resource_id_default();
+    test_resource_id_construct();
+    test_resource_id_equality();
+    test_asset_id_type_safety();
+    test_texture_id();
+    test_mesh_id();
+    test_audio_id();
+    test_resource_id_unordered_map();
+    test_resource_id_invalid_static();
+    std::cout << "ResourceId tests passed" << std::endl;
+    
+    // EntityPool tests
+    test_entity_pool_allocate();
+    test_entity_pool_deallocate();
+    test_entity_pool_stale_handle();
+    test_entity_pool_capacity();
+    test_entity_pool_full();
+    test_entity_pool_double_deallocate();
+    std::cout << "EntityPool tests passed" << std::endl;
     
     std::cout << "All tests passed!" << std::endl;
     return 0;

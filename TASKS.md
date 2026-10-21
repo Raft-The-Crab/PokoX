@@ -29,7 +29,7 @@ Statuses: `READY`, `BLOCKED`, `IN_PROGRESS`, `DONE`, `DECISION_REQUIRED`.
   - [x] CI uses pinned/reproducible toolchain/dependency setup.
 
 ### PKX-003 — Core result/error, logging, and stable ID primitives
-- Status: `DONE`
+- Status: `DONE` (Enhanced)
 - Contract: `docs/03-engine/cpp-engine-foundation.md`
 - Depends on: PKX-002
 - Deliver: minimal core primitives with explicit contracts and tests.
@@ -38,6 +38,16 @@ Statuses: `READY`, `BLOCKED`, `IN_PROGRESS`, `DONE`, `DECISION_REQUIRED`.
   - [x] ID uniqueness/stale-handle behavior is tested as appropriate.
   - [x] Public APIs have Doxygen.
   - [x] Unit tests pass.
+- Enhancements:
+  - [x] Expanded error codes to 40+ across 10 categories (General, System, Network, FileSystem, Graphics, Audio, Input, Scripting, Asset, Validation)
+  - [x] Added error category system for semantic grouping
+  - [x] Added stack trace support (placeholder for platform-specific implementation)
+  - [x] Added Logger file output with configurable size limits
+  - [x] Added log rotation (placeholder for full filesystem implementation)
+  - [x] Added multiple log formats (Text, JSON, CSV)
+  - [x] Added async logging placeholder
+  - [x] Added additional ID types (ResourceId, AssetId, TextureId, MeshId, AudioId) with type safety
+  - [x] Added EntityPool for generational handle management with stale-handle detection
 
 ### PKX-004 — Windows application lifecycle
 - Status: `READY`

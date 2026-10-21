@@ -3,8 +3,28 @@
 #include <string>
 #include <variant>
 #include <system_error>
+#include <vector>
 
 namespace poko::core {
+
+/**
+ * @brief Error categories for grouping related errors
+ *
+ * Provides semantic grouping of errors for better error handling
+ * and logging strategies.
+ */
+enum class ErrorCategory {
+    General = 0,
+    System,
+    Network,
+    FileSystem,
+    Graphics,
+    Audio,
+    Input,
+    Scripting,
+    Asset,
+    Validation
+};
 
 /**
  * @brief Error codes for PokoX operations
@@ -14,23 +34,66 @@ namespace poko::core {
  */
 enum class ErrorCode {
     Success = 0,
+    // General errors
     InvalidArgument,
     OutOfMemory,
-    ResourceNotFound,
-    PermissionDenied,
     OperationFailed,
     NotInitialized,
     AlreadyInitialized,
     InvalidState,
     Timeout,
     InvalidData,
-    UnknownError
+    UnknownError,
+    // System errors
+    PermissionDenied,
+    SystemError,
+    // Network errors
+    NetworkDisconnected,
+    NetworkTimeout,
+    NetworkUnreachable,
+    // File system errors
+    FileNotFound,
+    FileInUse,
+    DirectoryNotFound,
+    PathTooLong,
+    DiskFull,
+    // Graphics errors
+    GraphicsDeviceLost,
+    GraphicsInitializationFailed,
+    ShaderCompilationFailed,
+    // Audio errors
+    AudioDeviceNotFound,
+    AudioInitializationFailed,
+    // Input errors
+    InputDeviceNotFound,
+    InputInitializationFailed,
+    // Scripting errors
+    ScriptCompilationFailed,
+    ScriptRuntimeError,
+    ScriptSecurityViolation,
+    // Asset errors
+    AssetLoadFailed,
+    AssetCorrupted,
+    AssetVersionMismatch,
+    // Validation errors
+    ValidationFailed,
+    SchemaViolation
+};
+
+/**
+ * @brief Stack trace entry for error context
+ */
+struct StackFrame {
+    std::string function;
+    std::string file;
+    unsigned int line;
 };
 
 /**
  * @brief Detailed error information
  *
- * Combines an error code with a descriptive message for debugging.
+ * Combines an error code with a descriptive message, category,
+ * and optional stack trace for debugging.
  * Follows RAII principles and is move-only for efficiency.
  */
 class Error {
@@ -39,9 +102,11 @@ public:
      * @brief Construct an error with code and message
      * @param code The error code
      * @param message Human-readable error description
+     * @param category Error category (defaults to General)
      */
-    explicit Error(ErrorCode code = ErrorCode::UnknownError, std::string message = "")
-        : code_(code), message_(std::move(message)) {}
+    explicit Error(ErrorCode code = ErrorCode::UnknownError, std::string message = "",
+                   ErrorCategory category = ErrorCategory::General)
+        : code_(code), message_(std::move(message)), category_(category) {}
 
     /**
      * @brief Get the error code
@@ -56,10 +121,35 @@ public:
     [[nodiscard]] const std::string& message() const noexcept { return message_; }
 
     /**
+     * @brief Get the error category
+     * @return The error category
+     */
+    [[nodiscard]] ErrorCategory category() const noexcept { return category_; }
+
+    /**
      * @brief Check if this represents a success (no error)
      * @return true if success, false otherwise
      */
     [[nodiscard]] bool is_success() const noexcept { return code_ == ErrorCode::Success; }
+
+    /**
+     * @brief Get the stack trace
+     * @return Vector of stack frames
+     */
+    [[nodiscard]] const std::vector<StackFrame>& stack_trace() const noexcept { return stack_trace_; }
+
+    /**
+     * @brief Set the stack trace
+     * @param trace Stack trace to set
+     */
+    void set_stack_trace(std::vector<StackFrame> trace) {
+        stack_trace_ = std::move(trace);
+    }
+
+    /**
+     * @brief Capture current stack trace (platform-dependent)
+     */
+    void capture_stack_trace();
 
     /**
      * @brief Convert to string representation
@@ -70,6 +160,8 @@ public:
 private:
     ErrorCode code_;
     std::string message_;
+    ErrorCategory category_;
+    std::vector<StackFrame> stack_trace_;
 };
 
 /**

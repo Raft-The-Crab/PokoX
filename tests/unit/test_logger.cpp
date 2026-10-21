@@ -43,3 +43,22 @@ void test_logger_thread_safety() {
     logger.error("Error message");
     logger.warning("Warning message");
 }
+
+void test_logger_formats() {
+    Logger& logger = Logger::instance();
+    
+    // Test Text format (default)
+    logger.set_format(LogFormat::Text);
+    assert(logger.format() == LogFormat::Text);
+    
+    // Test JSON format
+    logger.set_format(LogFormat::JSON);
+    assert(logger.format() == LogFormat::JSON);
+    
+    // Test CSV format
+    logger.set_format(LogFormat::CSV);
+    assert(logger.format() == LogFormat::CSV);
+    
+    // Reset to Text
+    logger.set_format(LogFormat::Text);
+}
