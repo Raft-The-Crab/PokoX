@@ -92,9 +92,60 @@ int main(int argc, char** argv) {
     }
 
     std::printf("Texture created successfully\n");
+    std::printf("Creating vertex buffer...\n");
+
+    // Create vertex buffer for triangle
+    const float triangle_vertices[] = {
+        -0.5f, -0.5f, 0.0f,
+         0.5f, -0.5f, 0.0f,
+         0.0f,  0.5f, 0.0f
+    };
+    const uint32_t vertex_count = 3;
+    const uint32_t vertex_size = 3 * sizeof(float);
+    const uint32_t buffer_size = vertex_count * vertex_size;
+
+    poko::render::VertexBuffer vertex_buffer;
+    poko::render::BufferDesc vb_desc;
+    vb_desc.data = triangle_vertices;
+    vb_desc.size = buffer_size;
+    vb_desc.stride = vertex_size;
+    vb_desc.name = "TriangleVertexBuffer";
+
+    auto vb_result = vertex_buffer.initialize(device, vb_desc);
+    if (vb_result != poko::render::BufferErrorCode::Success) {
+        std::fprintf(stderr, "Failed to create vertex buffer: %d\n", static_cast<int>(vb_result));
+        engine.shutdown();
+        return 1;
+    }
+
+    std::printf("Vertex buffer created successfully\n");
+
+    // Define vertex layout
+    poko::render::VertexAttribute layout_attr;
+    layout_attr.semantic = poko::render::VertexSemantic::Position;
+    layout_attr.format = poko::render::VertexFormat::Float3;
+    layout_attr.offset = 0;
+
+    poko::render::VertexLayout vertex_layout;
+    vertex_layout.attributes = &layout_attr;
+    vertex_layout.attribute_count = 1;
+    vertex_layout.stride = vertex_size;
+
+    // Define resource signature for texture
+    poko::render::ShaderResource tex_resource;
+    tex_resource.name = "g_Texture";
+    tex_resource.type = poko::render::ShaderResourceType::TextureSampler;
+    tex_resource.shader_stages = 2;  // Pixel shader (bit 1)
+    tex_resource.array_size = 1;
+
+    poko::render::ResourceSignatureDesc signature_desc;
+    signature_desc.name = "M6 Resource Signature";
+    signature_desc.resources = &tex_resource;
+    signature_desc.resource_count = 1;
+
     std::printf("Creating pipeline...\n");
 
-    // Create a simple pipeline for material binding
+    // Create a simple pipeline for material binding with vertex layout and resource signature
     const char* vs_source = R"(
         #version 330 core
         layout(location = 0) in vec3 inPosition;
@@ -138,6 +189,8 @@ int main(int argc, char** argv) {
     pipeline_desc.topology = poko::render::PrimitiveTopology::TriangleList;
     pipeline_desc.depth_stencil.depth_enable = false;
     pipeline_desc.rasterizer.cull_mode = poko::render::CullMode::None;
+    pipeline_desc.vertex_layout = vertex_layout;  // Include vertex layout from start
+    pipeline_desc.resource_signature = signature_desc;  // Include resource signature from start
 
     auto pipeline_result = pipeline.initialize(device, pipeline_desc);
 
@@ -171,54 +224,6 @@ int main(int argc, char** argv) {
     } else {
         std::printf("Material created successfully with SRB\n");
     }
-
-    // Create vertex buffer for triangle
-    const float triangle_vertices[] = {
-        -0.5f, -0.5f, 0.0f,
-         0.5f, -0.5f, 0.0f,
-         0.0f,  0.5f, 0.0f
-    };
-    const uint32_t vertex_count = 3;
-    const uint32_t vertex_size = 3 * sizeof(float);
-    const uint32_t buffer_size = vertex_count * vertex_size;
-
-    poko::render::VertexBuffer vertex_buffer;
-    poko::render::BufferDesc vb_desc;
-    vb_desc.data = triangle_vertices;
-    vb_desc.size = buffer_size;
-    vb_desc.stride = vertex_size;
-    vb_desc.name = "TriangleVertexBuffer";
-
-    auto vb_result = vertex_buffer.initialize(device, vb_desc);
-    if (vb_result != poko::render::BufferErrorCode::Success) {
-        std::fprintf(stderr, "Failed to create vertex buffer: %d\n", static_cast<int>(vb_result));
-        engine.shutdown();
-        return 1;
-    }
-
-    std::printf("Vertex buffer created successfully\n");
-
-    // Define vertex layout
-    poko::render::VertexAttribute layout_attr;
-    layout_attr.semantic = poko::render::VertexSemantic::Position;
-    layout_attr.format = poko::render::VertexFormat::Float3;
-    layout_attr.offset = 0;
-
-    poko::render::VertexLayout vertex_layout;
-    vertex_layout.attributes = &layout_attr;
-    vertex_layout.attribute_count = 1;
-    vertex_layout.stride = vertex_size;
-
-    // Recreate pipeline with vertex layout
-    pipeline_desc.vertex_layout = vertex_layout;
-    pipeline_result = pipeline.initialize(device, pipeline_desc);
-    if (pipeline_result != poko::render::PipelineErrorCode::Success) {
-        std::fprintf(stderr, "Pipeline recreation failed: %d\n", static_cast<int>(pipeline_result));
-        engine.shutdown();
-        return 1;
-    }
-
-    std::printf("Pipeline recreated with vertex layout\n");
 
     // Get context and swap chain for rendering
     auto* context = engine.context();
@@ -274,14 +279,11 @@ int main(int argc, char** argv) {
         viewport.max_depth = 1.0f;
         context->set_viewport(viewport);
 
-        // Clear with dark blue
-        poko::render::ClearColor clear_color{0.05f, 0.10f, 0.20f, 1.0f};
-        context->clear_render_target(clear_color);
-
-        // Set render target
+        // Set render target (must be bound before clearing in OpenGL)
         context->set_render_target(swap_chain);
 
-        // Clear again after binding render target (OpenGL requirement)
+        // Clear with dark blue
+        poko::render::ClearColor clear_color{0.05f, 0.10f, 0.20f, 1.0f};
         context->clear_render_target(clear_color);
 
         // Set pipeline

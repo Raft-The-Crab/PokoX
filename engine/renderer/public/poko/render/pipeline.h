@@ -147,6 +147,37 @@ struct RasterizerDesc {
 };
 
 /**
+ * @brief Shader resource type enumeration.
+ */
+enum class ShaderResourceType : uint32_t {
+    Unknown = 0,
+    Texture = 1,
+    Sampler = 2,
+    TextureSampler = 3,
+    ConstantBuffer = 4,
+    StructuredBuffer = 5
+};
+
+/**
+ * @brief Shader resource description for resource signature.
+ */
+struct ShaderResource {
+    const char* name = nullptr;
+    ShaderResourceType type = ShaderResourceType::TextureSampler;
+    uint32_t shader_stages = 0;  // Bitmask: 1=Vertex, 2=Pixel, 4=Geometry, etc.
+    uint32_t array_size = 1;
+};
+
+/**
+ * @brief Resource signature description.
+ */
+struct ResourceSignatureDesc {
+    const char* name = "ResourceSignature";
+    const ShaderResource* resources = nullptr;
+    uint32_t resource_count = 0;
+};
+
+/**
  * @brief Poko error codes for pipeline operations.
  */
 enum class PipelineErrorCode : int32_t {
@@ -189,6 +220,7 @@ struct PipelineDesc {
     DepthStencilDesc depth_stencil;
     RasterizerDesc rasterizer;
     VertexLayout vertex_layout;  // M3: Vertex input layout
+    ResourceSignatureDesc resource_signature;  // M6: Resource signature for textures/materials
 };
 
 /**

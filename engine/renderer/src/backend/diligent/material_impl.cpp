@@ -96,7 +96,13 @@ bool Material::Impl::initialize(Device* device, const MaterialDesc& desc) {
     }
 
     // Create SRB from pipeline's resource signature
-    pipeline_impl->pipeline->CreateShaderResourceBinding(&srb, true);
+    // Use the explicit resource signature if available, otherwise use the pipeline's implicit one
+    if (pipeline_impl->resource_signature) {
+        pipeline_impl->resource_signature->CreateShaderResourceBinding(&srb, true);
+    } else {
+        pipeline_impl->pipeline->CreateShaderResourceBinding(&srb, true);
+    }
+    
     if (!srb) {
         std::fprintf(stderr, "Failed to create SRB from pipeline\n");
         return false;

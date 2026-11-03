@@ -16,6 +16,10 @@ PipelineState::Impl::~Impl() {
         srb->Release();
         srb = nullptr;
     }
+    if (resource_signature) {
+        resource_signature->Release();
+        resource_signature = nullptr;
+    }
     if (pipeline) {
         pipeline->Release();
         pipeline = nullptr;
@@ -317,6 +321,54 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
         }
     }
 
+    // Create resource signature if specified
+    Diligent::IPipelineResourceSignature* resource_signature = nullptr;
+    if (desc.resource_signature.resources && desc.resource_signature.resource_count > 0) {
+        Diligent::PipelineResourceDesc resources[16];
+        uint32_t res_count = 0;
+        
+        for (uint32_t i = 0; i < desc.resource_signature.resource_count && i < 16; ++i) {
+            const auto& res = desc.resource_signature.resources[i];
+            if (!res.name) continue;
+            
+            Diligent::SHADER_TYPE shader_type = Diligent::SHADER_TYPE_PIXEL;
+            if (res.shader_stages & 1) shader_type |= Diligent::SHADER_TYPE_VERTEX;
+            if (res.shader_stages & 2) shader_type |= Diligent::SHADER_TYPE_PIXEL;
+            if (res.shader_stages & 4) shader_type |= Diligent::SHADER_TYPE_GEOMETRY;
+            
+            Diligent::SHADER_RESOURCE_TYPE res_type = Diligent::SHADER_RESOURCE_TYPE_TEXTURE_SRV;
+            Diligent::SHADER_RESOURCE_VARIABLE_TYPE var_type = Diligent::SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE;
+            Diligent::PIPELINE_RESOURCE_FLAGS flags = Diligent::PIPELINE_RESOURCE_FLAG_NONE;
+            
+            // For combined texture-sampler in OpenGL
+            if (res.type == ShaderResourceType::TextureSampler) {
+                flags = Diligent::PIPELINE_RESOURCE_FLAG_COMBINED_SAMPLER;
+            }
+            
+            resources[res_count].Name = res.name;
+            resources[res_count].ShaderStages = shader_type;
+            resources[res_count].ResourceType = res_type;
+            resources[res_count].VarType = var_type;
+            resources[res_count].ArraySize = res.array_size;
+            resources[res_count].Flags = flags;
+            ++res_count;
+        }
+        
+        Diligent::PipelineResourceSignatureDesc signature_desc;
+        signature_desc.Name = desc.resource_signature.name ? desc.resource_signature.name : "Poko Resource Signature";
+        signature_desc.Resources = resources;
+        signature_desc.NumResources = res_count;
+        signature_desc.UseCombinedTextureSamplers = true;  // Required for OpenGL
+        
+        device_impl->device->CreatePipelineResourceSignature(signature_desc, &resource_signature);
+        if (!resource_signature) {
+            std::fprintf(stderr, "Failed to create resource signature\n");
+            vs->Release();
+            ps->Release();
+            return false;
+        }
+    }
+
     // Create pipeline state
     Diligent::GraphicsPipelineStateCreateInfo pso_ci;
     pso_ci.PSODesc.Name = desc.name ? desc.name : "Poko Pipeline";
@@ -325,6 +377,12 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     pso_ci.GraphicsPipeline.RTVFormats[0] = color_format;
     pso_ci.GraphicsPipeline.DSVFormat = depth_format;
     pso_ci.GraphicsPipeline.PrimitiveTopology = topology;
+    
+    // Use explicit resource signature if provided
+    if (resource_signature) {
+        pso_ci.ResourceSignaturesCount = 1;
+        pso_ci.ppResourceSignatures = &resource_signature;
+    }
     
     // Configure blend state
     pso_ci.GraphicsPipeline.BlendDesc.RenderTargets[0].BlendEnable = desc.blend_state.blend_enable ? Diligent::True : Diligent::False;
@@ -373,12 +431,23 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
         return false;
     }
 
-    // Create shader resource binding (required by Diligent even when no resources used)
-    pipeline->CreateShaderResourceBinding(&srb, true);
+    // Create shader resource binding from pipeline's resource signature
+    // If we used an explicit resource signature, use that instead of the pipeline's implicit one
+    if (resource_signature) {
+        resource_signature->CreateShaderResourceBinding(&srb, true);
+        // Keep the resource signature reference for later use by materials
+        this->resource_signature = resource_signature;
+    } else {
+        pipeline->CreateShaderResourceBinding(&srb, true);
+    }
+    
     if (!srb) {
         std::fprintf(stderr, "Shader resource binding creation failed\n");
         pipeline->Release();
         pipeline = nullptr;
+        if (resource_signature) {
+            resource_signature->Release();
+        }
         return false;
     }
 

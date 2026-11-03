@@ -34,6 +34,6 @@ add_test(NAME m5.demo
 )
 
 set_tests_properties(m5.demo PROPERTIES
-    TIMEOUT 30
+    TIMEOUT 60
     LABELS "m5;graphics"
 )

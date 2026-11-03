@@ -18,6 +18,7 @@ namespace poko::render {
 
 struct PipelineState::Impl {
     Diligent::IPipelineState* pipeline = nullptr;
+    Diligent::IPipelineResourceSignature* resource_signature = nullptr;
     Diligent::IShaderResourceBinding* srb = nullptr;
     std::string vertex_shader_source;
     std::string pixel_shader_source;
