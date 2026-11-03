@@ -7,6 +7,7 @@
 #include "backend/diligent/internal/device_impl.h"
 #include "backend/diligent/internal/texture_impl.h"
 #include "backend/diligent/internal/pipeline_impl.h"
+#include "backend/diligent/internal/constant_buffer_impl.h"
 
 #include <cstdio>
 
@@ -39,8 +40,9 @@ bool Material::Impl::initialize(Device* device, const MaterialDesc& desc) {
         std::fprintf(stderr, "Material '%s' requires a valid pipeline\n", desc.name ? desc.name : "(unnamed)");
         return false;
     }
-    if (desc.texture_count == 0) {
-        std::fprintf(stderr, "Material '%s' must have at least one texture\n", desc.name ? desc.name : "(unnamed)");
+    // M7: Allow materials with only constant buffers or only textures or both
+    if (desc.texture_count == 0 && desc.constant_buffer_count == 0) {
+        std::fprintf(stderr, "Material '%s' must have at least one texture or constant buffer\n", desc.name ? desc.name : "(unnamed)");
         return false;
     }
     if (desc.texture_count > 32) {
@@ -48,8 +50,17 @@ bool Material::Impl::initialize(Device* device, const MaterialDesc& desc) {
             desc.name ? desc.name : "(unnamed)", desc.texture_count);
         return false;
     }
-    if (!desc.texture_bindings) {
+    if (desc.constant_buffer_count > 16) {
+        std::fprintf(stderr, "Material '%s' constant buffer count (%u) exceeds maximum (16)\n", 
+            desc.name ? desc.name : "(unnamed)", desc.constant_buffer_count);
+        return false;
+    }
+    if (desc.texture_count > 0 && !desc.texture_bindings) {
         std::fprintf(stderr, "Material '%s' has invalid texture bindings array\n", desc.name ? desc.name : "(unnamed)");
+        return false;
+    }
+    if (desc.constant_buffer_count > 0 && !desc.constant_buffer_bindings) {
+        std::fprintf(stderr, "Material '%s' has invalid constant buffer bindings array\n", desc.name ? desc.name : "(unnamed)");
         return false;
     }
     if (!desc.name) {
@@ -90,6 +101,33 @@ bool Material::Impl::initialize(Device* device, const MaterialDesc& desc) {
         textures[i] = binding.texture;
         shader_variables[i] = binding.shader_variable;
         array_indices[i] = binding.array_index;
+    }
+
+    // M7: Store constant buffer references and shader variable names
+    constant_buffers.resize(desc.constant_buffer_count);
+    cb_shader_variables.resize(desc.constant_buffer_count);
+    
+    for (uint32_t i = 0; i < desc.constant_buffer_count; ++i) {
+        const auto& binding = desc.constant_buffer_bindings[i];
+        if (!binding.buffer || !binding.buffer->is_valid()) {
+            std::fprintf(stderr, "Material '%s': Invalid constant buffer at binding index %u\n",
+                desc.name ? desc.name : "(unnamed)", i);
+            return false;
+        }
+        if (!binding.shader_variable) {
+            std::fprintf(stderr, "Material '%s': Missing shader variable name at binding index %u\n",
+                desc.name ? desc.name : "(unnamed)", i);
+            return false;
+        }
+        // Validate device compatibility
+        auto cb_device = binding.buffer->get_device();
+        if (cb_device && cb_device != device) {
+            std::fprintf(stderr, "Material '%s': Constant buffer at binding index %u created from different device\n",
+                desc.name ? desc.name : "(unnamed)", i);
+            return false;
+        }
+        constant_buffers[i] = binding.buffer;
+        cb_shader_variables[i] = binding.shader_variable;
     }
 
     // Get pipeline implementation
@@ -146,6 +184,24 @@ bool Material::Impl::initialize(Device* device, const MaterialDesc& desc) {
         } else {
             std::fprintf(stderr, "Warning: Shader variable '%s' not found in SRB for material '%s' (binding index %u)\n", 
                 shader_variables[i].c_str(), desc.name ? desc.name : "(unnamed)", i);
+        }
+    }
+
+    // M7: Bind all constant buffers to SRB
+    for (uint32_t i = 0; i < desc.constant_buffer_count; ++i) {
+        auto cb_impl = constant_buffers[i]->impl_;
+        if (!cb_impl) {
+            std::fprintf(stderr, "Invalid constant buffer implementation at binding index %u\n", i);
+            return false;
+        }
+
+        // Bind constant buffer to SRB variable
+        auto* cb_var = srb->GetVariableByName(Diligent::SHADER_TYPE_VERTEX, cb_shader_variables[i].c_str());
+        if (cb_var) {
+            cb_var->Set(cb_impl->buffer);
+        } else {
+            std::fprintf(stderr, "Warning: Shader variable '%s' not found in SRB for material '%s' (binding index %u)\n", 
+                cb_shader_variables[i].c_str(), desc.name ? desc.name : "(unnamed)", i);
         }
     }
 

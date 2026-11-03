@@ -6,8 +6,9 @@
  * behind the Pimpl pattern in backend/diligent/. Consumers never need to include
  * Diligent headers.
  *
- * M3 Scope: Supports vertex buffer creation with position attribute (Float3).
- * Other attributes and index buffers are deferred to future milestones.
+ * M3 Scope: Supports vertex buffer creation with extended vertex formats
+ * (Float, Float2, Float3, Float4, Int, Int2, Int3, Int4, UInt, UInt2, UInt3, UInt4)
+ * and multiple vertex attributes (Position, Normal, TexCoord, Color).
  */
 
 #ifndef POKO_RENDER_VERTEX_BUFFER_H

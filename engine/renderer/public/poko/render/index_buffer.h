@@ -6,8 +6,7 @@
  * behind the Pimpl pattern in backend/diligent/. Consumers never need to include
  * Diligent headers.
  *
- * M4 Scope: Supports 16-bit and 32-bit unsigned indices. Other formats are
- * deferred to future milestones.
+ * M4 Scope: Supports 16-bit and 32-bit unsigned indices with full validation.
  */
 
 #ifndef POKO_RENDER_INDEX_BUFFER_H

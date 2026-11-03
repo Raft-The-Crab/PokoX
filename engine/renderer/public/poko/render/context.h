@@ -17,6 +17,7 @@
 #include "index_buffer.h"
 #include "texture.h"
 #include "material.h"
+#include "constant_buffer.h"
 #include <cstdint>
 
 namespace poko::render {

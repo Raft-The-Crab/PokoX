@@ -29,6 +29,7 @@ set(POKO_RENDERER_PUBLIC_HEADERS
     public/poko/render/index_buffer.h
     public/poko/render/texture.h
     public/poko/render/material.h
+    public/poko/render/constant_buffer.h
 )
 
 # -----------------------------------------------------------------------------
@@ -59,6 +60,9 @@ set(POKO_RENDERER_SOURCES
     # Material
     src/material/material.cpp
 
+    # ConstantBuffer
+    src/constant_buffer/constant_buffer.cpp
+
     # Backend: Diligent implementation
     src/backend/diligent/device_impl.cpp
     src/backend/diligent/swapchain_impl.cpp
@@ -68,6 +72,7 @@ set(POKO_RENDERER_SOURCES
     src/backend/diligent/index_buffer_impl.cpp
     src/backend/diligent/texture_impl.cpp
     src/backend/diligent/material_impl.cpp
+    src/backend/diligent/constant_buffer_impl.cpp
 )
 
 # -----------------------------------------------------------------------------

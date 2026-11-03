@@ -6,13 +6,16 @@
  * behind the Pimpl pattern in backend/diligent/. Consumers never need to include
  * Diligent headers.
  *
- * M6 Scope: Associates textures with shader resource slots for binding.
+ * M6/M7 Scope: Associates textures and constant buffers with shader resource
+ * slots for binding through SRB. Supports multiple textures and constant buffers
+ * per material with device compatibility validation.
  */
 
 #ifndef POKO_RENDER_MATERIAL_H
 #define POKO_RENDER_MATERIAL_H
 
 #include "texture.h"
+#include "constant_buffer.h"
 #include "device.h"
 #include <cstdint>
 
@@ -31,6 +34,14 @@ struct TextureBinding {
 };
 
 /**
+ * @brief Constant buffer binding description.
+ */
+struct ConstantBufferBinding {
+    ConstantBuffer* buffer = nullptr;  // Constant buffer to bind
+    const char* shader_variable = nullptr;  // Shader variable name (e.g., "g_Transform")
+};
+
+/**
  * @brief Material description.
  */
 struct MaterialDesc {
@@ -38,6 +49,8 @@ struct MaterialDesc {
     PipelineState* pipeline = nullptr;  // Pipeline for resource signature
     uint32_t texture_count = 0;  // Number of textures
     TextureBinding* texture_bindings = nullptr;  // Array of texture bindings
+    uint32_t constant_buffer_count = 0;  // Number of constant buffers
+    ConstantBufferBinding* constant_buffer_bindings = nullptr;  // Array of constant buffer bindings
 };
 
 /**

@@ -6,8 +6,8 @@
  * behind the Pimpl pattern in backend/diligent/. Consumers never need to include
  * Diligent headers.
  *
- * M5 Scope: Supports 2D textures with RGBA8 format. Other formats and texture
- * types are deferred to future milestones.
+ * M5 Scope: Supports 2D textures with multiple formats (RGBA8, RG8, R8, RGBA16,
+ * RGBA32, depth formats), dimension validation, and texture SRV creation.
  */
 
 #ifndef POKO_RENDER_TEXTURE_H

@@ -20,6 +20,8 @@
 
 namespace poko::render {
 
+class ConstantBuffer;
+
 /**
  * @brief Diligent-specific implementation of Context.
  */
