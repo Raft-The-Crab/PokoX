@@ -1,0 +1,66 @@
+# Doxyfile for PokoX Engine Foundation
+# Generated configuration for API documentation
+
+PROJECT_NAME           = "PokoX Engine Foundation"
+PROJECT_NUMBER         = "M1"
+PROJECT_BRIEF          = "Engine Foundation - Device, SwapChain, Context, Platform abstractions"
+
+OUTPUT_DIRECTORY       = "docs/api"
+
+CREATE_SUBDIRS         = NO
+ALLOW_UNICODE_NAMES    = YES
+
+INPUT                  = C:/Users/mysti.LAPTOP.000/Desktop/PokoX/engine/renderer/public/poko/render \
+                        C:/Users/mysti.LAPTOP.000/Desktop/PokoX/engine/platform/public/poko/platform \
+                        C:/Users/mysti.LAPTOP.000/Desktop/PokoX/engine/core/public/poko/core
+
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */internal/* */impl* */backend/*
+
+FILE_PATTERNS          = *.h *.hpp
+
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = NO
+
+HIDE_UNDOC_MEMBERS     = YES
+HIDE_UNDOC_CLASSES     = YES
+HIDE_FRIEND_COMPOUNDS  = YES
+HIDE_IN_BODY_DOCS      = NO
+
+INTERNAL_DOCS          = NO
+CASE_SENSE_NAMES       = YES
+HIDE_SCOPE_NAMES       = NO
+
+SHOW_INCLUDE_FILES     = NO
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+HTML_COLORSTYLE_HUE    = 220
+HTML_COLORSTYLE_SAT    = 100
+
+GENERATE_LATEX         = NO
+GENERATE_MAN           = NO
+GENERATE_RTF           = NO
+
+HAVE_DOT               = NO
+COLLABORATION_GRAPH    = NO
+GROUP_GRAPHS           = NO
+UML_LOOK               = NO
+TEMPLATE_RELATIONS     = NO
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+GRAPHICAL_HIERARCHY    = NO
+DIRECTORY_GRAPH        = NO
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = NO
+
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+WARN_FORMAT            = "$file:$line: $text"
+
+WARN_LOGFILE           = docs/doxygen-warnings.log

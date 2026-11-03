@@ -8,7 +8,17 @@
 #
 # Current register:
 #   SDL2          | MSYS2 UCRT64 package (2.32.10)        | zlib
-#   DiligentCore  | FetchContent, pinned tag v2.5.6       | Apache-2.0
+#   DiligentCore  | FetchContent by URL + SHA-256         | Apache-2.0
+#   xxHash        | FetchContent by URL + SHA-256         | BSD-2-Clause
+#                 | (required by DiligentCore, see below)
+#
+# Why Diligent is pinned by archive hash rather than by git ref:
+#   `git clone --depth 1` of this repository stalled indefinitely from the
+#   development network (pack file never received a byte, verified twice), while
+#   the release tarball transfers normally. A content hash is also a stronger pin
+#   than a tag: CMake fails the configure if a single byte differs, so a moved or
+#   re-tagged upstream cannot silently change what is built. The upstream commit
+#   that the tag pointed to is recorded alongside the hash for traceability.
 # =============================================================================
 include_guard(GLOBAL)
 include(FetchContent)
@@ -16,16 +26,32 @@ include(FetchContent)
 # -----------------------------------------------------------------------------
 # Dependency pins
 # -----------------------------------------------------------------------------
+set(POKO_DILIGENT_VERSION "v2.5.6")
+set(POKO_DILIGENT_URL
+    "https://codeload.github.com/DiligentGraphics/DiligentCore/tar.gz/refs/tags/${POKO_DILIGENT_VERSION}"
+    CACHE STRING "Diligent Core release archive URL")
+set(POKO_DILIGENT_URL_HASH
+    "SHA256=abc190c05ee7e5ef2bba52fcbc5fdfe2256cce3435efba9cfe263a386653f671"
+    CACHE STRING "Expected hash of POKO_DILIGENT_URL; empty disables verification")
+# The commit that tag v2.5.6 resolved to when this pin was reviewed. GitHub
+# archives for a tag are regenerated upstream, not stored, so the hash is the
+# authoritative pin and this SHA is the human-readable traceability record.
+set(POKO_DILIGENT_REVIEWED_COMMIT "b036337d68be2353c9950a85929acf796b9a6d50")
 
-# Tag is used for a shallow clone; the SHA is the *reviewed* commit that the tag
-# must resolve to. A mismatch is reported loudly instead of silently building
-# different code than the one that was evaluated.
-set(POKO_DILIGENT_GIT_REPOSITORY "https://github.com/DiligentGraphics/DiligentCore.git"
-    CACHE STRING "Diligent Core repository URL")
-set(POKO_DILIGENT_GIT_TAG "v2.5.6"
-    CACHE STRING "Diligent Core tag or commit to build")
-set(POKO_DILIGENT_PINNED_SHA "b036337d68be2353c9950a85929acf796b9a6d50"
-    CACHE STRING "Commit SHA that POKO_DILIGENT_GIT_TAG is reviewed against")
+# --- xxHash (a Diligent Core third-party dependency) --------------------------
+# Diligent's ThirdParty/xxHash is a git submodule, so it is empty in the release
+# archive, while ThirdParty/CMakeLists.txt adds xxHash/cmake_unofficial
+# unconditionally. Supplying the exact upstream (Diligent fork) commit and
+# pre-creating `xxHash::xxhash` makes Diligent skip its own submodule block.
+# The hash below was computed from a fresh download of this archive, not copied
+# from documentation.
+set(POKO_XXHASH_COMMIT "a57f6cce2698049863af8c25787084ae0489d849")
+set(POKO_XXHASH_URL
+    "https://codeload.github.com/DiligentGraphics/xxHash/tar.gz/${POKO_XXHASH_COMMIT}"
+    CACHE STRING "xxHash archive URL required by Diligent Core")
+set(POKO_XXHASH_URL_HASH
+    "SHA256=50a63437bbc5dc34c62d00dfce92324d8f17e5d116a659e074a3e0a1d02b6f16"
+    CACHE STRING "Expected hash of POKO_XXHASH_URL; empty disables verification")
 
 # Windows desktop consumes the MSYS2 package so that exactly one SDL2 (and one
 # SDL2 runtime DLL) exists in the process. Android will build SDL2 from a pinned
@@ -73,7 +99,7 @@ function(poko_find_sdl2)
             endif()
         endif()
         set(POKO_SDL2_SUMMARY "system package, version ${_sdl2_version}" PARENT_SCOPE)
-        poko_record_pin(SDL2 "system-package")
+        poko_record_pin(SDL2 "system-package ${_sdl2_version}")
         return()
     endif()
 
@@ -99,11 +125,57 @@ function(poko_find_sdl2)
 endfunction()
 
 # -----------------------------------------------------------------------------
+# poko_fetch_diligent_xxhash()
+#
+# Must run before Diligent is added. xxHash is a C-only project, so the knobs
+# below are set as normal variables (not cache entries) with the same values
+# Diligent itself would use: static library, no xxhsum executable, no install
+# rules leaking into the PokoX install tree.
+# -----------------------------------------------------------------------------
+function(poko_fetch_diligent_xxhash)
+    if(TARGET xxHash::xxhash)
+        return()
+    endif()
+
+    set(BUILD_SHARED_LIBS      OFF)
+    set(XXHASH_BUILD_XXHSUM    OFF)
+    set(XXHASH_BUNDLED_MODE    ON)
+
+    FetchContent_Declare(xxHash
+        URL                   "${POKO_XXHASH_URL}"
+        URL_HASH              "${POKO_XXHASH_URL_HASH}"
+        SOURCE_SUBDIR         cmake_unofficial
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+
+    message(STATUS "poko: fetching xxHash ${POKO_XXHASH_COMMIT} (required by Diligent Core)")
+    FetchContent_MakeAvailable(xxHash)
+
+    if(NOT TARGET xxHash::xxhash)
+        message(FATAL_ERROR
+            "xxHash was fetched, but no xxHash::xxhash target was created; "
+            "Diligent Core cannot be built without it.")
+    endif()
+
+    # A shared xxhash would need a runtime DLL next to every executable; the
+    # static build is what Diligent expects, so refuse to continue otherwise.
+    get_target_property(_poko_xxhash_type xxHash::xxhash TYPE)
+    if(NOT _poko_xxhash_type STREQUAL "STATIC_LIBRARY")
+        message(FATAL_ERROR
+            "xxHash was built as '${_poko_xxhash_type}', expected STATIC_LIBRARY.")
+    endif()
+
+    poko_record_pin(xxHash "${POKO_XXHASH_COMMIT} ${POKO_XXHASH_URL_HASH}")
+endfunction()
+
+# -----------------------------------------------------------------------------
 # poko_fetch_diligent_core()
 #
 # Builds only the pieces M0 needs: the core library and the OpenGL backend.
 # Direct3D, Vulkan, WebGPU, Metal and the archiver are disabled to keep the
 # dependency build small and to keep unsupported backends out of the binary.
+#
+# Offline / mirror builds: set -DFETCHCONTENT_SOURCE_DIR_DILIGENTCORE=<path> to
+# use an existing checkout instead of downloading.
 # -----------------------------------------------------------------------------
 function(poko_fetch_diligent_core)
     if(NOT POKO_WITH_DILIGENT)
@@ -111,9 +183,18 @@ function(poko_fetch_diligent_core)
         return()
     endif()
 
-    if(TARGET Diligent-GraphicsEngineOpenGL)
+    if(TARGET Diligent-GraphicsEngineOpenGL-static)
         set(POKO_DILIGENT_SUMMARY "pre-existing Diligent targets" PARENT_SCOPE)
         return()
+    endif()
+
+    if(MINGW)
+        # Diligent detects MinGW only from the generator name
+        # (`if(${CMAKE_GENERATOR} MATCHES "MinGW")`), so a Ninja build never sets
+        # MINGW_BUILD. Without it Diligent enables its DXC/ATL shader-compiler
+        # path, which needs atlbase.h and cannot be built by GCC. We are in fact
+        # compiling with MinGW-w64, so declare it before Diligent is added.
+        set(MINGW_BUILD TRUE CACHE INTERNAL "Building with MinGW (declared by PokoX)")
     endif()
 
     # Backend selection. These are Diligent's own options; setting them before
@@ -131,40 +212,30 @@ function(poko_fetch_diligent_core)
     set(DILIGENT_INSTALL_PDB  OFF CACHE BOOL "" FORCE)
 
     FetchContent_Declare(DiligentCore
-        GIT_REPOSITORY "${POKO_DILIGENT_GIT_REPOSITORY}"
-        GIT_TAG        "${POKO_DILIGENT_GIT_TAG}"
-        GIT_SHALLOW    TRUE
-        GIT_PROGRESS   TRUE)
+        URL                   "${POKO_DILIGENT_URL}"
+        URL_HASH              "${POKO_DILIGENT_URL_HASH}"
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 
+    message(STATUS "poko: fetching Diligent Core ${POKO_DILIGENT_VERSION} (pin ${POKO_DILIGENT_URL_HASH}; upstream commit ${POKO_DILIGENT_REVIEWED_COMMIT})")
+    # Saturates the `ThirdParty/xxHash` submodule that the release archive
+    # leaves empty. Must precede MakeAvailable(DiligentCore).
+    poko_fetch_diligent_xxhash()
     FetchContent_MakeAvailable(DiligentCore)
 
-    # Verify the revision actually built matches the reviewed commit.
-    find_package(Git QUIET)
-    set(_diligent_rev "unknown")
-    if(Git_FOUND AND EXISTS "${diligentcore_SOURCE_DIR}/.git")
-        execute_process(
-            COMMAND "${GIT_EXECUTABLE}" rev-parse HEAD
-            WORKING_DIRECTORY "${diligentcore_SOURCE_DIR}"
-            OUTPUT_VARIABLE _diligent_rev
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            ERROR_QUIET)
+    # Diligent always defines a shared OpenGL engine target. Under a Makefile
+    # generator it links against `export.map` relative to its own binary dir; with
+    # Ninja the link command runs from the build root, so that path does not
+    # resolve and the DLL fails to link. PokoX links the static engine, so the
+    # DLL is removed from the default build instead of being "fixed" by patching
+    # third-party code.
+    if(TARGET Diligent-GraphicsEngineOpenGL-shared)
+        set_target_properties(Diligent-GraphicsEngineOpenGL-shared
+            PROPERTIES EXCLUDE_FROM_ALL TRUE)
     endif()
 
-    if(_diligent_rev STREQUAL "unknown")
-        message(WARNING
-            "poko: could not verify the Diligent Core revision (git metadata missing). "
-            "Expected ${POKO_DILIGENT_PINNED_SHA}.")
-    elseif(NOT _diligent_rev STREQUAL POKO_DILIGENT_PINNED_SHA)
-        message(WARNING
-            "poko: Diligent Core revision mismatch.\n"
-            "  tag '${POKO_DILIGENT_GIT_TAG}' resolved to ${_diligent_rev}\n"
-            "  reviewed pin is            ${POKO_DILIGENT_PINNED_SHA}\n"
-            "  The tag may have moved upstream. Update the pin only after re-reviewing.")
-    endif()
-
-    poko_record_pin(DiligentCore "${_diligent_rev}")
+    poko_record_pin(DiligentCore "${POKO_DILIGENT_VERSION} ${POKO_DILIGENT_URL_HASH}")
     set(POKO_DILIGENT_SUMMARY
-        "FetchContent ${POKO_DILIGENT_GIT_TAG} (${_diligent_rev}), OpenGL backend only"
+        "FetchContent ${POKO_DILIGENT_VERSION} (content-pinned), OpenGL backend only"
         PARENT_SCOPE)
 endfunction()
 

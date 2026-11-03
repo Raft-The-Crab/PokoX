@@ -48,7 +48,11 @@ option(POKO_BUILD_STUDIO    "Build the Poko Studio host"            ON)
 option(POKO_BUILD_MOD       "Build the Poko Mod host"               ON)
 option(POKO_BUILD_AUTHORITY "Build the headless game authority"     ON)
 
-option(POKO_BUILD_M0        "Build the M0 technical-feasibility applications" ON)
+option(POKO_BUILD_M0        "Build the M0 technical-feasibility applications (reference, disabled by default)" OFF)
+option(POKO_BUILD_M1        "Build the M1 engine foundation demo" OFF)
+option(POKO_BUILD_M2        "Build the M2 minimal scene rendering demo" OFF)
+option(POKO_BUILD_M3        "Build the M3 vertex buffer and mesh rendering demo" OFF)
+option(POKO_BUILD_M4        "Build the M4 index buffer and indexed rendering demo" OFF)
 option(POKO_WITH_DILIGENT   "Build the Diligent Core graphics backend"        ON)
 
 include(CTest)  # defines BUILD_TESTING, registers CTest for `ctest`
@@ -102,10 +106,56 @@ if(POKO_BUILD_M0)
 endif()
 
 # -----------------------------------------------------------------------------
+# M1 engine foundation
+# -----------------------------------------------------------------------------
+if(POKO_BUILD_M1)
+    add_subdirectory(m1)
+endif()
+
+# -----------------------------------------------------------------------------
+# M2 minimal scene rendering
+# -----------------------------------------------------------------------------
+if(POKO_BUILD_M2)
+    add_subdirectory(m2)
+endif()
+
+# -----------------------------------------------------------------------------
+# M3 vertex buffers and mesh rendering
+# -----------------------------------------------------------------------------
+if(POKO_BUILD_M3)
+    add_subdirectory(m3)
+endif()
+
+# -----------------------------------------------------------------------------
+# M4 index buffers and indexed rendering
+# -----------------------------------------------------------------------------
+if(POKO_BUILD_M4)
+    add_subdirectory(m4)
+endif()
+
+# -----------------------------------------------------------------------------
 # Tests
 # -----------------------------------------------------------------------------
 if(BUILD_TESTING)
     poko_add_component_if_present("tests")
+endif()
+
+# -----------------------------------------------------------------------------
+# Documentation
+# -----------------------------------------------------------------------------
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+    set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile)
+    set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/docs)
+
+    add_custom_target(doc
+        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_IN}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM
+    )
+else()
+    message(STATUS "Doxygen not found, documentation target will not be available")
 endif()
 
 # -----------------------------------------------------------------------------
