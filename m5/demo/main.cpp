@@ -1,12 +1,13 @@
 /**
  * @file main.cpp
- * @brief M5 demo: Texture creation through Poko API.
+ * @brief M5 demo: Texture creation and sampling through Poko API.
  */
 
 #define SDL_MAIN_HANDLED
 
 #include "poko/core/engine.h"
 #include "poko/render/texture.h"
+#include "poko/render/material.h"
 #include "poko/render/pipeline.h"
 #include "poko/render/context.h"
 #include "poko/render/vertex_buffer.h"
@@ -132,22 +133,39 @@ int main(int argc, char** argv) {
     vertex_layout.attribute_count = 1;
     vertex_layout.stride = vertex_size;
 
+    // Define resource signature for texture
+    poko::render::ShaderResource tex_resource;
+    tex_resource.name = "g_Texture";
+    tex_resource.type = poko::render::ShaderResourceType::TextureSampler;
+    tex_resource.shader_stages = 2;  // Pixel shader (bit 1)
+    tex_resource.array_size = 1;
+
+    poko::render::ResourceSignatureDesc signature_desc;
+    signature_desc.name = "M5 Resource Signature";
+    signature_desc.resources = &tex_resource;
+    signature_desc.resource_count = 1;
+
     std::printf("Creating pipeline...\n");
 
-    // Create a simple pipeline for rendering with vertex layout
+    // Create a pipeline with texture sampling
     const char* vs_source = R"(
         #version 330 core
         layout(location = 0) in vec3 inPosition;
+        out vec2 texCoord;
         void main() {
             gl_Position = vec4(inPosition, 1.0);
+            texCoord = inPosition.xy * 0.5 + 0.5;  // Map [-1,1] to [0,1]
         }
     )";
 
     const char* ps_source = R"(
         #version 330 core
+        uniform sampler2D g_Texture;
+        in vec2 texCoord;
         out vec4 fragColor;
         void main() {
-            fragColor = vec4(1.0, 0.5, 0.0, 1.0);  // Orange
+            vec4 texColor = texture(g_Texture, texCoord);
+            fragColor = texColor;
         }
     )";
 
@@ -173,7 +191,8 @@ int main(int argc, char** argv) {
     pipeline_desc.topology = poko::render::PrimitiveTopology::TriangleList;
     pipeline_desc.depth_stencil.depth_enable = false;
     pipeline_desc.rasterizer.cull_mode = poko::render::CullMode::None;
-    pipeline_desc.vertex_layout = vertex_layout;  // Include vertex layout from start
+    pipeline_desc.vertex_layout = vertex_layout;
+    pipeline_desc.resource_signature = signature_desc;
 
     auto pipeline_result = pipeline.initialize(device, pipeline_desc);
     if (pipeline_result != poko::render::PipelineErrorCode::Success) {
@@ -183,6 +202,29 @@ int main(int argc, char** argv) {
     }
 
     std::printf("Pipeline created successfully\n");
+    std::printf("Creating material...\n");
+
+    // Create material to bind texture
+    poko::render::TextureBinding tex_binding;
+    tex_binding.texture = &texture;
+    tex_binding.shader_variable = "g_Texture";
+    tex_binding.array_index = 0;
+
+    poko::render::Material material;
+    poko::render::MaterialDesc mat_desc;
+    mat_desc.name = "CheckerboardMaterial";
+    mat_desc.texture_count = 1;
+    mat_desc.texture_bindings = &tex_binding;
+    mat_desc.pipeline = &pipeline;
+
+    auto mat_result = material.initialize(device, mat_desc);
+    if (mat_result != poko::render::MaterialErrorCode::Success) {
+        std::fprintf(stderr, "Material creation failed: %d\n", static_cast<int>(mat_result));
+        engine.shutdown();
+        return 1;
+    }
+
+    std::printf("Material created successfully\n");
 
     // Get context and swap chain for rendering
     auto* context = engine.context();
@@ -250,6 +292,9 @@ int main(int argc, char** argv) {
 
         // Set vertex buffer
         context->set_vertex_buffer(&vertex_buffer);
+
+        // Set material (binds texture)
+        context->set_material(&material);
 
         // Draw triangle
         context->draw(vertex_count);

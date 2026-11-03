@@ -70,7 +70,8 @@ bool Context::set_pipeline_state(PipelineState* pipeline) {
     // Validate device compatibility
     if (impl_->poko_device && pipeline_impl->device) {
         if (impl_->poko_device != pipeline_impl->device) {
-            std::fprintf(stderr, "Pipeline created from different device\n");
+            std::fprintf(stderr, "Context: Pipeline '%s' created from different device\n", 
+                pipeline_impl->desc.name ? pipeline_impl->desc.name : "(unnamed)");
             return false;
         }
     }
@@ -124,7 +125,8 @@ bool Context::set_vertex_buffer(VertexBuffer* buffer) {
     // Validate device compatibility
     if (impl_->poko_device && buffer_impl->device) {
         if (impl_->poko_device != buffer_impl->device) {
-            std::fprintf(stderr, "VertexBuffer created from different device\n");
+            std::fprintf(stderr, "Context: VertexBuffer '%s' created from different device\n", 
+                buffer_impl->desc.name ? buffer_impl->desc.name : "(unnamed)");
             return false;
         }
     }
@@ -158,7 +160,8 @@ bool Context::set_index_buffer(IndexBuffer* buffer) {
     // Validate device compatibility
     if (impl_->poko_device && buffer_impl->device) {
         if (impl_->poko_device != buffer_impl->device) {
-            std::fprintf(stderr, "IndexBuffer created from different device\n");
+            std::fprintf(stderr, "Context: IndexBuffer '%s' created from different device\n", 
+                buffer_impl->desc.name ? buffer_impl->desc.name : "(unnamed)");
             return false;
         }
     }
@@ -235,7 +238,8 @@ bool Context::set_material(Material* material) {
     // Validate device compatibility
     if (impl_->poko_device && material_impl->device) {
         if (impl_->poko_device != material_impl->device) {
-            std::fprintf(stderr, "Material created from different device\n");
+            std::fprintf(stderr, "Context: Material '%s' created from different device\n", 
+                material_impl->desc.name ? material_impl->desc.name : "(unnamed)");
             return false;
         }
     }

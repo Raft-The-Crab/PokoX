@@ -49,15 +49,15 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
 
     // Validate inputs
     if (desc.vertex_shader.type != ShaderType::Vertex) {
-        std::fprintf(stderr, "Invalid vertex shader type\n");
+        std::fprintf(stderr, "Invalid vertex shader type for pipeline '%s'\n", desc.name ? desc.name : "(unnamed)");
         return false;
     }
     if (desc.pixel_shader.type != ShaderType::Pixel) {
-        std::fprintf(stderr, "Invalid pixel shader type\n");
+        std::fprintf(stderr, "Invalid pixel shader type for pipeline '%s'\n", desc.name ? desc.name : "(unnamed)");
         return false;
     }
     if (vertex_shader_source.empty() || pixel_shader_source.empty()) {
-        std::fprintf(stderr, "Shader source is empty\n");
+        std::fprintf(stderr, "Shader source is empty for pipeline '%s'\n", desc.name ? desc.name : "(unnamed)");
         return false;
     }
     if (!desc.name) {
@@ -428,6 +428,8 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
 
     if (!pipeline) {
         std::fprintf(stderr, "Pipeline state creation failed for '%s'\n", desc.name ? desc.name : "(unnamed)");
+        vs->Release();
+        ps->Release();
         return false;
     }
 
@@ -442,7 +444,8 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     }
     
     if (!srb) {
-        std::fprintf(stderr, "Shader resource binding creation failed\n");
+        std::fprintf(stderr, "Shader resource binding creation failed for pipeline '%s'\n", 
+            desc.name ? desc.name : "(unnamed)");
         pipeline->Release();
         pipeline = nullptr;
         if (resource_signature) {

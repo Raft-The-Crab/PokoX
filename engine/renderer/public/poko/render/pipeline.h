@@ -148,6 +148,9 @@ struct RasterizerDesc {
 
 /**
  * @brief Shader resource type enumeration.
+ *
+ * Used to describe shader resources in resource signatures.
+ * TextureSampler is the combined texture+sampler mode used in OpenGL.
  */
 enum class ShaderResourceType : uint32_t {
     Unknown = 0,
@@ -160,16 +163,23 @@ enum class ShaderResourceType : uint32_t {
 
 /**
  * @brief Shader resource description for resource signature.
+ *
+ * Describes a single shader resource (texture, sampler, constant buffer, etc.)
+ * that will be available for binding through materials.
  */
 struct ShaderResource {
-    const char* name = nullptr;
+    const char* name = nullptr;              /// Shader variable name (e.g., "g_Texture")
     ShaderResourceType type = ShaderResourceType::TextureSampler;
-    uint32_t shader_stages = 0;  // Bitmask: 1=Vertex, 2=Pixel, 4=Geometry, etc.
-    uint32_t array_size = 1;
+    uint32_t shader_stages = 0;              /// Bitmask: 1=Vertex, 2=Pixel, 4=Geometry, etc.
+    uint32_t array_size = 1;                 /// Array size for texture arrays (1 for single texture)
 };
 
 /**
  * @brief Resource signature description.
+ *
+ * Defines the set of shader resources that a pipeline can access.
+ * Materials must bind textures to these resources by name.
+ * Required for pipelines that use textures or other shader resources.
  */
 struct ResourceSignatureDesc {
     const char* name = "ResourceSignature";
@@ -208,6 +218,10 @@ struct ShaderDesc {
 
 /**
  * @brief Graphics pipeline description.
+ *
+ * Combines shaders, vertex layout, render target formats, and rendering state
+ * into a complete pipeline configuration. Requires a resource signature if
+ * the pipeline uses textures or other shader resources.
  */
 struct PipelineDesc {
     const char* name = "Pipeline";
@@ -219,8 +233,8 @@ struct PipelineDesc {
     BlendStateDesc blend_state;
     DepthStencilDesc depth_stencil;
     RasterizerDesc rasterizer;
-    VertexLayout vertex_layout;  // M3: Vertex input layout
-    ResourceSignatureDesc resource_signature;  // M6: Resource signature for textures/materials
+    VertexLayout vertex_layout;              /// M3: Vertex input layout
+    ResourceSignatureDesc resource_signature; /// M6: Resource signature for textures/materials
 };
 
 /**

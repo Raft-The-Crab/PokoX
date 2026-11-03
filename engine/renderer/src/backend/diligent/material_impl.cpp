@@ -134,8 +134,8 @@ bool Material::Impl::initialize(Device* device, const MaterialDesc& desc) {
         if (texture_var) {
             texture_var->Set(texture_impl->srv);
         } else {
-            std::fprintf(stderr, "Warning: Shader variable '%s' not found in SRB (binding index %u)\n", 
-                shader_variables[i].c_str(), i);
+            std::fprintf(stderr, "Warning: Shader variable '%s' not found in SRB for material '%s' (binding index %u)\n", 
+                shader_variables[i].c_str(), desc.name ? desc.name : "(unnamed)", i);
         }
     }
 
