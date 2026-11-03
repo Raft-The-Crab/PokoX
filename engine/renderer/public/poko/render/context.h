@@ -74,6 +74,14 @@ public:
     void clear_render_target(const ClearColor& color);
 
     /**
+     * @brief Clears the current depth buffer.
+     *
+     * @param depth Depth value to clear to (default 1.0).
+     * @param stencil Stencil value to clear to (default 0).
+     */
+    void clear_depth(float depth = 1.0f, uint8_t stencil = 0);
+
+    /**
      * @brief Sets the graphics pipeline state.
      *
      * @param pipeline The pipeline state. Must be valid and compatible with this context's device.

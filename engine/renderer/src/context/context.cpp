@@ -24,6 +24,27 @@ Context::~Context() {
 
 void Context::set_viewport(const Viewport& viewport) {
     if (!impl_ || !impl_->context) {
+        std::fprintf(stderr, "Context: set_viewport called on invalid context\n");
+        return;
+    }
+
+    // Validate viewport dimensions
+    if (viewport.width <= 0 || viewport.height <= 0) {
+        std::fprintf(stderr, "Context: Invalid viewport dimensions (%.0f x %.0f)\n", 
+            viewport.width, viewport.height);
+        return;
+    }
+    if (viewport.min_depth < 0.0f || viewport.min_depth > 1.0f) {
+        std::fprintf(stderr, "Context: Invalid min_depth (%.2f), must be in [0,1]\n", viewport.min_depth);
+        return;
+    }
+    if (viewport.max_depth < 0.0f || viewport.max_depth > 1.0f) {
+        std::fprintf(stderr, "Context: Invalid max_depth (%.2f), must be in [0,1]\n", viewport.max_depth);
+        return;
+    }
+    if (viewport.min_depth >= viewport.max_depth) {
+        std::fprintf(stderr, "Context: min_depth (%.2f) must be less than max_depth (%.2f)\n",
+            viewport.min_depth, viewport.max_depth);
         return;
     }
 
@@ -35,9 +56,8 @@ void Context::set_viewport(const Viewport& viewport) {
     vp.MinDepth = viewport.min_depth;
     vp.MaxDepth = viewport.max_depth;
 
-    // Need width/height for reference; use reasonable defaults if swap chain not set
-    uint32_t width = static_cast<uint32_t>(viewport.width > 0 ? viewport.width : 1280);
-    uint32_t height = static_cast<uint32_t>(viewport.height > 0 ? viewport.height : 720);
+    uint32_t width = static_cast<uint32_t>(viewport.width);
+    uint32_t height = static_cast<uint32_t>(viewport.height);
 
     impl_->context->SetViewports(1, &vp, width, height);
 }
@@ -61,6 +81,27 @@ void Context::clear_render_target(const ClearColor& color) {
     
     float clear_color[4] = {color.r, color.g, color.b, color.a};
     impl_->context->ClearRenderTarget(rtv, clear_color,
+        Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+}
+
+void Context::clear_depth(float depth, uint8_t stencil) {
+    if (!impl_ || !impl_->context) {
+        std::fprintf(stderr, "Context: clear_depth called on invalid context\n");
+        return;
+    }
+    
+    if (!impl_->swap_chain) {
+        std::fprintf(stderr, "Context: clear_depth called without swap chain bound\n");
+        return;
+    }
+
+    Diligent::ITextureView* dsv = impl_->swap_chain->GetDepthBufferDSV();
+    if (!dsv) {
+        // Not an error - may not have depth buffer
+        return;
+    }
+    
+    impl_->context->ClearDepthStencil(dsv, Diligent::CLEAR_DEPTH_FLAG, depth, stencil,
         Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 }
 

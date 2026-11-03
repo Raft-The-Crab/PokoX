@@ -48,6 +48,21 @@ enum class TextureFormat : uint32_t {
 };
 
 /**
+ * @brief Device capability flags.
+ */
+struct DeviceCaps {
+    bool supports_compute = false;
+    bool supports_geometry_shaders = false;
+    bool supports_tessellation = false;
+    uint32_t max_texture_size = 0;
+    uint32_t max_texture_3d_size = 0;
+    uint32_t max_texture_array_layers = 0;
+    uint32_t max_render_targets = 0;
+    uint32_t max_vertex_shader_inputs = 0;
+    uint32_t max_pixel_shader_inputs = 0;
+};
+
+/**
  * @brief Opaque handle to a graphics device.
  *
  * The implementation is private; consumers cannot depend on its layout.
