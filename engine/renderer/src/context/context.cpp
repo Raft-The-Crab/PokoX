@@ -249,6 +249,11 @@ bool Context::set_index_buffer(IndexBuffer* buffer) {
 
 bool Context::draw(uint32_t vertex_count) {
     if (!impl_ || !impl_->context) {
+        std::fprintf(stderr, "Context: draw called on invalid context\n");
+        return false;
+    }
+    if (vertex_count == 0) {
+        std::fprintf(stderr, "Context: draw called with zero vertex count\n");
         return false;
     }
 
@@ -259,11 +264,16 @@ bool Context::draw(uint32_t vertex_count) {
 
 bool Context::draw_indexed(uint32_t index_count, uint32_t start_index) {
     if (!impl_ || !impl_->context) {
+        std::fprintf(stderr, "Context: draw_indexed called on invalid context\n");
+        return false;
+    }
+    if (index_count == 0) {
+        std::fprintf(stderr, "Context: draw_indexed called with zero index count\n");
         return false;
     }
 
     Diligent::DrawIndexedAttribs draw_attribs;
-    draw_attribs.IndexType = impl_->bound_index_format;  // M4: Use tracked format
+    draw_attribs.IndexType = impl_->bound_index_format;
     draw_attribs.NumIndices = index_count;
     draw_attribs.FirstIndexLocation = start_index;
     draw_attribs.Flags = Diligent::DRAW_FLAG_NONE;

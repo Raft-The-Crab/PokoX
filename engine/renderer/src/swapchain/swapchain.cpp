@@ -22,11 +22,16 @@ SwapChainDesc SwapChain::get_desc() const {
 
 bool SwapChain::resize(uint32_t width, uint32_t height) {
     if (!impl_ || !impl_->swap_chain) {
+        std::fprintf(stderr, "SwapChain: resize called on invalid swap chain\n");
+        return false;
+    }
+    if (width == 0 || height == 0) {
+        std::fprintf(stderr, "SwapChain: Invalid resize dimensions (%u x %u)\n", width, height);
         return false;
     }
     // Validate device is still valid
     if (impl_->poko_device && !impl_->poko_device->is_valid()) {
-        std::fprintf(stderr, "Cannot resize swap chain: device is invalid\n");
+        std::fprintf(stderr, "SwapChain: Cannot resize - device is invalid\n");
         return false;
     }
     impl_->swap_chain->Resize(width, height);
