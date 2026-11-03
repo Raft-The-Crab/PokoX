@@ -121,6 +121,25 @@ enum class ComparisonFunc : uint32_t {
 };
 
 /**
+ * @brief Texture address mode enumeration.
+ */
+enum class TextureAddressMode : uint32_t {
+    Wrap = 0,
+    Mirror = 1,
+    Clamp = 2,
+    Border = 3
+};
+
+/**
+ * @brief Texture filter mode enumeration.
+ */
+enum class TextureFilterMode : uint32_t {
+    Point = 0,
+    Linear = 1,
+    Anisotropic = 2
+};
+
+/**
  * @brief Depth stencil state description.
  */
 struct DepthStencilDesc {
@@ -130,6 +149,27 @@ struct DepthStencilDesc {
     bool stencil_enable = false;
     uint8_t stencil_read_mask = 0xFF;
     uint8_t stencil_write_mask = 0xFF;
+};
+
+/**
+ * @brief Sampler state description.
+ *
+ * Defines texture sampling behavior. For OpenGL with combined texture-samplers,
+ * the sampler state is typically applied to the texture resource itself.
+ */
+struct SamplerDesc {
+    TextureFilterMode min_filter = TextureFilterMode::Linear;
+    TextureFilterMode mag_filter = TextureFilterMode::Linear;
+    TextureFilterMode mip_filter = TextureFilterMode::Linear;
+    TextureAddressMode address_u = TextureAddressMode::Wrap;
+    TextureAddressMode address_v = TextureAddressMode::Wrap;
+    TextureAddressMode address_w = TextureAddressMode::Wrap;
+    float mip_lod_bias = 0.0f;
+    float max_anisotropy = 16.0f;
+    ComparisonFunc comparison_func = ComparisonFunc::Never;
+    float border_color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float min_lod = -1000.0f;
+    float max_lod = 1000.0f;
 };
 
 /**
@@ -233,6 +273,7 @@ struct PipelineDesc {
     BlendStateDesc blend_state;
     DepthStencilDesc depth_stencil;
     RasterizerDesc rasterizer;
+    SamplerDesc sampler;                     /// M6: Default sampler state for textures
     VertexLayout vertex_layout;              /// M3: Vertex input layout
     ResourceSignatureDesc resource_signature; /// M6: Resource signature for textures/materials
 };

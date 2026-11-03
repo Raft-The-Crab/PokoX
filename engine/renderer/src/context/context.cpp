@@ -43,11 +43,22 @@ void Context::set_viewport(const Viewport& viewport) {
 }
 
 void Context::clear_render_target(const ClearColor& color) {
-    if (!impl_ || !impl_->context || !impl_->swap_chain) {
+    if (!impl_ || !impl_->context) {
+        std::fprintf(stderr, "Context: clear_render_target called on invalid context\n");
+        return;
+    }
+    
+    if (!impl_->swap_chain) {
+        std::fprintf(stderr, "Context: clear_render_target called without swap chain bound\n");
         return;
     }
 
     Diligent::ITextureView* rtv = impl_->swap_chain->GetCurrentBackBufferRTV();
+    if (!rtv) {
+        std::fprintf(stderr, "Context: Failed to get back buffer RTV for clear\n");
+        return;
+    }
+    
     float clear_color[4] = {color.r, color.g, color.b, color.a};
     impl_->context->ClearRenderTarget(rtv, clear_color,
         Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
@@ -88,20 +99,28 @@ bool Context::set_pipeline_state(PipelineState* pipeline) {
 }
 
 bool Context::set_render_target(SwapChain* swap_chain) {
-    if (!impl_ || !impl_->context || !impl_->swap_chain) {
+    if (!impl_ || !impl_->context) {
+        std::fprintf(stderr, "Context: set_render_target called on invalid context\n");
         return false;
     }
     
     if (!swap_chain || !swap_chain->is_valid()) {
+        std::fprintf(stderr, "Context: set_render_target called with invalid swap chain\n");
         return false;
     }
 
     auto swap_chain_impl = get_swapchain_impl(swap_chain);
     if (!swap_chain_impl || !swap_chain_impl->swap_chain) {
+        std::fprintf(stderr, "Context: Failed to get swap chain implementation\n");
         return false;
     }
 
     Diligent::ITextureView* rtv = swap_chain_impl->swap_chain->GetCurrentBackBufferRTV();
+    if (!rtv) {
+        std::fprintf(stderr, "Context: Failed to get back buffer RTV\n");
+        return false;
+    }
+    
     impl_->context->SetRenderTargets(1, &rtv, nullptr,
         Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 

@@ -324,12 +324,36 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     // Create resource signature if specified
     Diligent::IPipelineResourceSignature* resource_signature = nullptr;
     if (desc.resource_signature.resources && desc.resource_signature.resource_count > 0) {
-        Diligent::PipelineResourceDesc resources[16];
+        // Validate resource count limit
+        if (desc.resource_signature.resource_count > 32) {
+            std::fprintf(stderr, "Resource signature '%s' has too many resources (%u > 32)\n",
+                desc.resource_signature.name ? desc.resource_signature.name : "(unnamed)",
+                desc.resource_signature.resource_count);
+            vs->Release();
+            ps->Release();
+            return false;
+        }
+        
+        Diligent::PipelineResourceDesc resources[32];
         uint32_t res_count = 0;
         
-        for (uint32_t i = 0; i < desc.resource_signature.resource_count && i < 16; ++i) {
+        for (uint32_t i = 0; i < desc.resource_signature.resource_count && i < 32; ++i) {
             const auto& res = desc.resource_signature.resources[i];
-            if (!res.name) continue;
+            if (!res.name) {
+                std::fprintf(stderr, "Resource signature '%s' has null name at index %u\n",
+                    desc.resource_signature.name ? desc.resource_signature.name : "(unnamed)", i);
+                continue;
+            }
+            
+            // Validate array size
+            if (res.array_size == 0 || res.array_size > 256) {
+                std::fprintf(stderr, "Resource signature '%s' has invalid array size %u for resource '%s'\n",
+                    desc.resource_signature.name ? desc.resource_signature.name : "(unnamed)",
+                    res.array_size, res.name);
+                vs->Release();
+                ps->Release();
+                return false;
+            }
             
             Diligent::SHADER_TYPE shader_type = Diligent::SHADER_TYPE_PIXEL;
             if (res.shader_stages & 1) shader_type |= Diligent::SHADER_TYPE_VERTEX;
@@ -354,6 +378,14 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
             ++res_count;
         }
         
+        if (res_count == 0) {
+            std::fprintf(stderr, "Resource signature '%s' has no valid resources\n",
+                desc.resource_signature.name ? desc.resource_signature.name : "(unnamed)");
+            vs->Release();
+            ps->Release();
+            return false;
+        }
+        
         Diligent::PipelineResourceSignatureDesc signature_desc;
         signature_desc.Name = desc.resource_signature.name ? desc.resource_signature.name : "Poko Resource Signature";
         signature_desc.Resources = resources;
@@ -362,7 +394,9 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
         
         device_impl->device->CreatePipelineResourceSignature(signature_desc, &resource_signature);
         if (!resource_signature) {
-            std::fprintf(stderr, "Failed to create resource signature\n");
+            std::fprintf(stderr, "Failed to create resource signature '%s' for pipeline '%s'\n", 
+                desc.resource_signature.name ? desc.resource_signature.name : "(unnamed)",
+                desc.name ? desc.name : "(unnamed)");
             vs->Release();
             ps->Release();
             return false;

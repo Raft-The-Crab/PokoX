@@ -36,19 +36,20 @@ bool Material::Impl::initialize(Device* device, const MaterialDesc& desc) {
 
     // Validate inputs
     if (!desc.pipeline || !desc.pipeline->is_valid()) {
-        std::fprintf(stderr, "Material requires a valid pipeline\n");
+        std::fprintf(stderr, "Material '%s' requires a valid pipeline\n", desc.name ? desc.name : "(unnamed)");
         return false;
     }
     if (desc.texture_count == 0) {
-        std::fprintf(stderr, "Material must have at least one texture\n");
+        std::fprintf(stderr, "Material '%s' must have at least one texture\n", desc.name ? desc.name : "(unnamed)");
         return false;
     }
-    if (desc.texture_count > 16) {
-        std::fprintf(stderr, "Material texture count (%u) exceeds maximum (16)\n", desc.texture_count);
+    if (desc.texture_count > 32) {
+        std::fprintf(stderr, "Material '%s' texture count (%u) exceeds maximum (32)\n", 
+            desc.name ? desc.name : "(unnamed)", desc.texture_count);
         return false;
     }
     if (!desc.texture_bindings) {
-        std::fprintf(stderr, "Invalid texture bindings array\n");
+        std::fprintf(stderr, "Material '%s' has invalid texture bindings array\n", desc.name ? desc.name : "(unnamed)");
         return false;
     }
     if (!desc.name) {

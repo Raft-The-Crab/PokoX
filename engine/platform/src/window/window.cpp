@@ -24,7 +24,14 @@ bool Window::initialize(const WindowDesc& desc) {
 }
 
 bool Window::poll_event(WindowEvent* out_event) {
-    return impl_ && impl_->poll_event(out_event);
+    if (!impl_) {
+        return false;
+    }
+    if (!out_event) {
+        std::fprintf(stderr, "Window: poll_event called with null event pointer\n");
+        return false;
+    }
+    return impl_->poll_event(out_event);
 }
 
 void* Window::native_handle() const {
