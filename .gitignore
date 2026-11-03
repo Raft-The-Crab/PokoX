@@ -1,28 +1,47 @@
-# Build directories
-build/
-out/
-bin/
-lib/
+# ---------------------------------------------------------------------------
+# Build output
+# ---------------------------------------------------------------------------
+/build/
+/out/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+CTestCustom.cmake
+compile_commands.json
+.ninja_deps
+.ninja_log
+*.ninja
+*.ninja_deps
+*.ninja_log
+/Testing/
+install_manifest.txt
+
+# NOTE: do *not* add a blanket `*.cmake` ignore rule here. PokoX keeps real,
+# reviewable CMake modules in cmake/ (dependency pins, toolchains, helpers) and
+# a blanket rule silently drops them from version control.
+
+# ---------------------------------------------------------------------------
+# Compiled artefacts
+# ---------------------------------------------------------------------------
 *.o
 *.obj
 *.a
 *.lib
+*.lo
 *.so
-*.dll
+*.so.*
 *.dylib
+*.dll
 *.exe
+*.pdb
+*.ilk
+*.exp
+*.idb
 
-# CMake
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-*.cmake
-!CMakeLists.txt
-!cmake/toolchains/*.cmake
-!cmake/modules/*.cmake
-
-# IDE
+# ---------------------------------------------------------------------------
+# IDE / editor
+# ---------------------------------------------------------------------------
 .vscode/
 .idea/
 *.swp
@@ -30,42 +49,60 @@ Makefile
 *~
 .DS_Store
 
+# ---------------------------------------------------------------------------
 # Dependencies
-third_party/DiligentCore/build/
-third_party/SDL2/build/
+# ---------------------------------------------------------------------------
+# Diligent and Mute are acquired through FetchContent at a pinned revision, so
+# their source trees must never be committed.
+third_party/DiligentCore/
+third_party/SDL2/
+third_party/Mute/
 
+# ---------------------------------------------------------------------------
 # Package outputs
+# ---------------------------------------------------------------------------
 *.pk
 *.pkx
 *.pkB
 
+# ---------------------------------------------------------------------------
 # Generated files
+# ---------------------------------------------------------------------------
 generated/
 gen/
 
-# Test outputs
-*.test
+# ---------------------------------------------------------------------------
+# Test output
+# ---------------------------------------------------------------------------
 test-results/
 coverage/
+*.gcda
+*.gcno
+*.profraw
 
-# Secrets and credentials
+# ---------------------------------------------------------------------------
+# Secrets and credentials — never commit these
+# ---------------------------------------------------------------------------
 .env
-.env.local
+.env.*
+!.env.example
 *.key
 *.pem
 !*.pub.pem
 secrets/
 credentials/
 
-# Logs
+# ---------------------------------------------------------------------------
+# Logs and temporaries
+# ---------------------------------------------------------------------------
 *.log
 logs/
-
-# Temporary files
 tmp/
 temp/
 *.tmp
 
+# ---------------------------------------------------------------------------
 # OS
+# ---------------------------------------------------------------------------
 Thumbs.db
-.DS_Store
+desktop.ini
