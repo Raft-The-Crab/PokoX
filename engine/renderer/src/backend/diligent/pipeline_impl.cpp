@@ -48,20 +48,28 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     }
 
     // Validate inputs
+    if (!desc.name) {
+        std::fprintf(stderr, "Pipeline must have a name\n");
+        return false;
+    }
     if (desc.vertex_shader.type != ShaderType::Vertex) {
-        std::fprintf(stderr, "Invalid vertex shader type for pipeline '%s'\n", desc.name ? desc.name : "(unnamed)");
+        std::fprintf(stderr, "Pipeline '%s': Invalid vertex shader type\n", desc.name);
         return false;
     }
     if (desc.pixel_shader.type != ShaderType::Pixel) {
-        std::fprintf(stderr, "Invalid pixel shader type for pipeline '%s'\n", desc.name ? desc.name : "(unnamed)");
+        std::fprintf(stderr, "Pipeline '%s': Invalid pixel shader type\n", desc.name);
         return false;
     }
     if (vertex_shader_source.empty() || pixel_shader_source.empty()) {
-        std::fprintf(stderr, "Shader source is empty for pipeline '%s'\n", desc.name ? desc.name : "(unnamed)");
+        std::fprintf(stderr, "Pipeline '%s': Shader source is empty\n", desc.name);
         return false;
     }
-    if (!desc.name) {
-        std::fprintf(stderr, "Pipeline must have a name\n");
+    if (!desc.vertex_shader.entry_point) {
+        std::fprintf(stderr, "Pipeline '%s': Vertex shader entry point is null\n", desc.name);
+        return false;
+    }
+    if (!desc.pixel_shader.entry_point) {
+        std::fprintf(stderr, "Pipeline '%s': Pixel shader entry point is null\n", desc.name);
         return false;
     }
 

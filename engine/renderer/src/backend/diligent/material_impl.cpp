@@ -65,17 +65,26 @@ bool Material::Impl::initialize(Device* device, const MaterialDesc& desc) {
     for (uint32_t i = 0; i < desc.texture_count; ++i) {
         const auto& binding = desc.texture_bindings[i];
         if (!binding.texture || !binding.texture->is_valid()) {
-            std::fprintf(stderr, "Invalid texture at binding index %u\n", i);
+            std::fprintf(stderr, "Material '%s': Invalid texture at binding index %u\n",
+                desc.name ? desc.name : "(unnamed)", i);
             return false;
         }
         if (!binding.shader_variable) {
-            std::fprintf(stderr, "Missing shader variable name at binding index %u\n", i);
+            std::fprintf(stderr, "Material '%s': Missing shader variable name at binding index %u\n",
+                desc.name ? desc.name : "(unnamed)", i);
+            return false;
+        }
+        // Validate array index
+        if (binding.array_index >= 256) {
+            std::fprintf(stderr, "Material '%s': Array index %u at binding index %u exceeds maximum (255)\n",
+                desc.name ? desc.name : "(unnamed)", binding.array_index, i);
             return false;
         }
         // Validate device compatibility
         auto texture_device = binding.texture->get_device();
         if (texture_device && texture_device != device) {
-            std::fprintf(stderr, "Texture at binding index %u created from different device\n", i);
+            std::fprintf(stderr, "Material '%s': Texture at binding index %u created from different device\n",
+                desc.name ? desc.name : "(unnamed)", i);
             return false;
         }
         textures[i] = binding.texture;

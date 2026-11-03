@@ -34,31 +34,36 @@ bool IndexBuffer::Impl::initialize(Device* device, const IndexBufferDesc& desc) 
     this->desc = desc;
 
     // Validate inputs
+    if (!desc.name) {
+        std::fprintf(stderr, "IndexBuffer must have a name\n");
+        return false;
+    }
     if (desc.size == 0) {
-        std::fprintf(stderr, "Invalid index buffer size: 0\n");
+        std::fprintf(stderr, "IndexBuffer '%s': Invalid size: 0\n", desc.name);
         return false;
     }
     if (!desc.data && desc.size > 0) {
-        std::fprintf(stderr, "Null data pointer with non-zero size\n");
+        std::fprintf(stderr, "IndexBuffer '%s': Null data pointer with non-zero size\n", desc.name);
         return false;
     }
     if (desc.format != IndexFormat::UInt16 && desc.format != IndexFormat::UInt32) {
-        std::fprintf(stderr, "Invalid index format: %d\n", static_cast<int>(desc.format));
+        std::fprintf(stderr, "IndexBuffer '%s': Invalid format: %d\n", desc.name, static_cast<int>(desc.format));
         return false;
     }
     if (desc.index_count == 0) {
-        std::fprintf(stderr, "Invalid index count: 0\n");
+        std::fprintf(stderr, "IndexBuffer '%s': Invalid index count: 0\n", desc.name);
         return false;
     }
     // Validate size matches format
     uint32_t expected_size = (desc.format == IndexFormat::UInt16) ? desc.index_count * 2 : desc.index_count * 4;
     if (desc.size != expected_size) {
-        std::fprintf(stderr, "Buffer size (%u) does not match expected size for format and index count (%u)\n", 
-            desc.size, expected_size);
+        std::fprintf(stderr, "IndexBuffer '%s': Size (%u) does not match expected size for format and index count (%u)\n",
+            desc.name, desc.size, expected_size);
         return false;
     }
-    if (!desc.name) {
-        std::fprintf(stderr, "IndexBuffer must have a name\n");
+    // Validate buffer size limit (typical max)
+    if (desc.size > 256 * 1024 * 1024) {  // 256 MB
+        std::fprintf(stderr, "IndexBuffer '%s': Size (%u MB) exceeds maximum (256 MB)\n", desc.name, desc.size / (1024 * 1024));
         return false;
     }
 

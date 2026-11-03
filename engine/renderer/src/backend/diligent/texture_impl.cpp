@@ -38,20 +38,25 @@ bool Texture::Impl::initialize(Device* device, const TextureDesc& desc) {
     this->desc = desc;
 
     // Validate inputs
-    if (desc.width == 0 || desc.height == 0) {
-        std::fprintf(stderr, "Invalid texture dimensions: %ux%u\n", desc.width, desc.height);
-        return false;
-    }
-    if (desc.type != TextureType::Texture2D) {
-        std::fprintf(stderr, "Invalid texture type: %d\n", static_cast<int>(desc.type));
-        return false;
-    }
     if (!desc.name) {
         std::fprintf(stderr, "Texture must have a name\n");
         return false;
     }
+    if (desc.width == 0 || desc.height == 0) {
+        std::fprintf(stderr, "Texture '%s': Invalid dimensions (%u x %u)\n", desc.name, desc.width, desc.height);
+        return false;
+    }
+    if (desc.type != TextureType::Texture2D) {
+        std::fprintf(stderr, "Texture '%s': Invalid type: %d\n", desc.name, static_cast<int>(desc.type));
+        return false;
+    }
+    // Validate texture size limits (typical OpenGL 4.4 limits)
+    if (desc.width > 16384 || desc.height > 16384) {
+        std::fprintf(stderr, "Texture '%s': Dimensions exceed maximum (16384 x 16384)\n", desc.name);
+        return false;
+    }
     if (desc.data_size > 0 && !desc.data) {
-        std::fprintf(stderr, "Null data pointer with non-zero size\n");
+        std::fprintf(stderr, "Texture '%s': Null data pointer with non-zero size\n", desc.name);
         return false;
     }
     // Validate data size matches dimensions for RGBA8

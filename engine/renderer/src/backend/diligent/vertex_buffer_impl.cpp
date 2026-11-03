@@ -34,24 +34,33 @@ bool VertexBuffer::Impl::initialize(Device* device, const BufferDesc& desc) {
     this->desc = desc;
 
     // Validate inputs
+    if (!desc.name) {
+        std::fprintf(stderr, "VertexBuffer must have a name\n");
+        return false;
+    }
     if (desc.size == 0) {
-        std::fprintf(stderr, "Invalid buffer size: 0\n");
+        std::fprintf(stderr, "VertexBuffer '%s': Invalid size: 0\n", desc.name);
         return false;
     }
     if (!desc.data && desc.size > 0) {
-        std::fprintf(stderr, "Null data pointer with non-zero size\n");
+        std::fprintf(stderr, "VertexBuffer '%s': Null data pointer with non-zero size\n", desc.name);
         return false;
     }
     if (desc.stride == 0) {
-        std::fprintf(stderr, "Invalid stride: 0\n");
+        std::fprintf(stderr, "VertexBuffer '%s': Invalid stride: 0\n", desc.name);
+        return false;
+    }
+    if (desc.stride > desc.size) {
+        std::fprintf(stderr, "VertexBuffer '%s': Stride (%u) cannot exceed buffer size (%u)\n", desc.name, desc.stride, desc.size);
         return false;
     }
     if (desc.size % desc.stride != 0) {
-        std::fprintf(stderr, "Buffer size (%u) is not a multiple of stride (%u)\n", desc.size, desc.stride);
+        std::fprintf(stderr, "VertexBuffer '%s': Size (%u) is not a multiple of stride (%u)\n", desc.name, desc.size, desc.stride);
         return false;
     }
-    if (!desc.name) {
-        std::fprintf(stderr, "VertexBuffer must have a name\n");
+    // Validate buffer size limit (typical max)
+    if (desc.size > 256 * 1024 * 1024) {  // 256 MB
+        std::fprintf(stderr, "VertexBuffer '%s': Size (%u MB) exceeds maximum (256 MB)\n", desc.name, desc.size / (1024 * 1024));
         return false;
     }
 
