@@ -34,4 +34,12 @@ bool PipelineState::is_valid() const {
     return impl_ != nullptr && impl_->pipeline != nullptr;
 }
 
+const char* PipelineState::get_name() const {
+    return impl_ ? (impl_->desc.name ? impl_->desc.name : "") : "";
+}
+
+Device* PipelineState::get_device() const {
+    return impl_ ? impl_->device : nullptr;
+}
+
 } // namespace poko::render

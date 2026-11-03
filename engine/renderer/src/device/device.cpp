@@ -36,4 +36,11 @@ bool Device::initialize(void* hwnd, uint32_t width, uint32_t height) {
     return impl_ && impl_->initialize(hwnd, width, height);
 }
 
+const char* Device::get_last_error() const {
+    if (!impl_) {
+        return "Device implementation is null";
+    }
+    return impl_->last_error.c_str();
+}
+
 } // namespace poko::render

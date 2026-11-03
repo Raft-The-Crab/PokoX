@@ -128,8 +128,8 @@ int main(int argc, char** argv) {
     pipeline_desc.color_format = poko::render::TextureFormat::RGBA8_UNORM;
     pipeline_desc.depth_format = poko::render::TextureFormat::D32_FLOAT;
     pipeline_desc.topology = poko::render::PrimitiveTopology::TriangleList;
-    pipeline_desc.depth_enable = false;
-    pipeline_desc.cull_mode = poko::render::CullMode::None;
+    pipeline_desc.depth_stencil.depth_enable = false;
+    pipeline_desc.rasterizer.cull_mode = poko::render::CullMode::None;
     pipeline_desc.vertex_layout = vertex_layout;  // M3: Vertex input layout
 
     auto result = pipeline.initialize(device, pipeline_desc);

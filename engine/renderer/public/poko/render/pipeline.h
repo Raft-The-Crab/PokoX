@@ -65,6 +65,88 @@ enum class PrimitiveTopology : uint32_t {
 };
 
 /**
+ * @brief Blend factor enumeration.
+ */
+enum class BlendFactor : uint32_t {
+    Zero = 0,
+    One = 1,
+    SrcColor = 2,
+    InvSrcColor = 3,
+    SrcAlpha = 4,
+    InvSrcAlpha = 5,
+    DestColor = 6,
+    InvDestColor = 7,
+    DestAlpha = 8,
+    InvDestAlpha = 9,
+    SrcAlphaSat = 10
+};
+
+/**
+ * @brief Blend operation enumeration.
+ */
+enum class BlendOp : uint32_t {
+    Add = 0,
+    Subtract = 1,
+    ReverseSubtract = 2,
+    Min = 3,
+    Max = 4
+};
+
+/**
+ * @brief Blend state description.
+ */
+struct BlendStateDesc {
+    bool blend_enable = false;
+    BlendFactor src_blend = BlendFactor::One;
+    BlendFactor dest_blend = BlendFactor::Zero;
+    BlendOp blend_op = BlendOp::Add;
+    BlendFactor src_blend_alpha = BlendFactor::One;
+    BlendFactor dest_blend_alpha = BlendFactor::Zero;
+    BlendOp blend_op_alpha = BlendOp::Add;
+    uint8_t render_target_write_mask = 0xF;  // RGBA all enabled
+};
+
+/**
+ * @brief Comparison function enumeration.
+ */
+enum class ComparisonFunc : uint32_t {
+    Never = 0,
+    Less = 1,
+    Equal = 2,
+    LessEqual = 3,
+    Greater = 4,
+    NotEqual = 5,
+    GreaterEqual = 6,
+    Always = 7
+};
+
+/**
+ * @brief Depth stencil state description.
+ */
+struct DepthStencilDesc {
+    bool depth_enable = false;
+    bool depth_write_enable = false;
+    ComparisonFunc depth_func = ComparisonFunc::Less;
+    bool stencil_enable = false;
+    uint8_t stencil_read_mask = 0xFF;
+    uint8_t stencil_write_mask = 0xFF;
+};
+
+/**
+ * @brief Rasterizer state description.
+ */
+struct RasterizerDesc {
+    CullMode cull_mode = CullMode::None;
+    bool front_counter_clockwise = false;
+    float depth_bias = 0.0f;
+    float depth_bias_clamp = 0.0f;
+    float slope_scaled_depth_bias = 0.0f;
+    bool depth_clip_enable = true;
+    bool scissor_enable = false;
+    bool antialiased_line_enable = false;
+};
+
+/**
  * @brief Poko error codes for pipeline operations.
  */
 enum class PipelineErrorCode : int32_t {
@@ -103,8 +185,9 @@ struct PipelineDesc {
     TextureFormat color_format = TextureFormat::RGBA8_UNORM;
     TextureFormat depth_format = TextureFormat::D32_FLOAT;
     PrimitiveTopology topology = PrimitiveTopology::TriangleList;
-    bool depth_enable = false;
-    CullMode cull_mode = CullMode::None;
+    BlendStateDesc blend_state;
+    DepthStencilDesc depth_stencil;
+    RasterizerDesc rasterizer;
     VertexLayout vertex_layout;  // M3: Vertex input layout
 };
 
@@ -142,12 +225,23 @@ public:
      */
     bool is_valid() const;
 
+    /**
+     * @brief Returns the pipeline name.
+     */
+    const char* get_name() const;
+
+    /**
+     * @brief Returns the device that created this pipeline.
+     */
+    Device* get_device() const;
+
 private:
     struct Impl;
     Impl* impl_;
     
     // Allow Context to access private impl_ for backend operations
     friend class Context;
+    friend class Material;
 };
 
 } // namespace poko::render

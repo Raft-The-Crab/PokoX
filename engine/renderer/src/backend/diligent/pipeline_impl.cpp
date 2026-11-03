@@ -56,6 +56,10 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
         std::fprintf(stderr, "Shader source is empty\n");
         return false;
     }
+    if (!desc.name) {
+        std::fprintf(stderr, "Pipeline must have a name\n");
+        return false;
+    }
 
     // Create vertex shader
     Diligent::ShaderCreateInfo shader_ci;
@@ -69,7 +73,7 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     device_impl->device->CreateShader(shader_ci, &vs);
 
     if (!vs) {
-        std::fprintf(stderr, "Vertex shader compilation failed\n");
+        std::fprintf(stderr, "Vertex shader compilation failed for pipeline '%s'\n", desc.name ? desc.name : "(unnamed)");
         return false;
     }
 
@@ -82,7 +86,7 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     device_impl->device->CreateShader(shader_ci, &ps);
 
     if (!ps) {
-        std::fprintf(stderr, "Pixel shader compilation failed\n");
+        std::fprintf(stderr, "Pixel shader compilation failed for pipeline '%s'\n", desc.name ? desc.name : "(unnamed)");
         vs->Release();
         return false;
     }
@@ -98,14 +102,35 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
         case TextureFormat::RGBA8_SRGB:
             color_format = Diligent::TEX_FORMAT_RGBA8_UNORM_SRGB;
             break;
+        case TextureFormat::RG8_UNORM:
+            color_format = Diligent::TEX_FORMAT_RG8_UNORM;
+            break;
+        case TextureFormat::R8_UNORM:
+            color_format = Diligent::TEX_FORMAT_R8_UNORM;
+            break;
+        case TextureFormat::RGBA16_FLOAT:
+            color_format = Diligent::TEX_FORMAT_RGBA16_FLOAT;
+            break;
+        case TextureFormat::RGBA32_FLOAT:
+            color_format = Diligent::TEX_FORMAT_RGBA32_FLOAT;
+            break;
         default:
             color_format = Diligent::TEX_FORMAT_RGBA8_UNORM;
             break;
     }
 
     switch (desc.depth_format) {
+        case TextureFormat::D16_UNORM:
+            depth_format = Diligent::TEX_FORMAT_D16_UNORM;
+            break;
+        case TextureFormat::D24_UNORM_S8_UINT:
+            depth_format = Diligent::TEX_FORMAT_D24_UNORM_S8_UINT;
+            break;
         case TextureFormat::D32_FLOAT:
             depth_format = Diligent::TEX_FORMAT_D32_FLOAT;
+            break;
+        case TextureFormat::D32_FLOAT_S8_UINT:
+            depth_format = Diligent::TEX_FORMAT_D32_FLOAT_S8X24_UINT;
             break;
         default:
             depth_format = Diligent::TEX_FORMAT_UNKNOWN;
@@ -134,7 +159,7 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
 
     // Map Poko cull mode to Diligent cull mode
     Diligent::CULL_MODE cull_mode = Diligent::CULL_MODE_NONE;
-    switch (desc.cull_mode) {
+    switch (desc.rasterizer.cull_mode) {
         case CullMode::None:
             cull_mode = Diligent::CULL_MODE_NONE;
             break;
@@ -148,6 +173,51 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
             cull_mode = Diligent::CULL_MODE_NONE;
             break;
     }
+
+    // Map Poko blend factor to Diligent blend factor
+    auto map_blend_factor = [](BlendFactor factor) -> Diligent::BLEND_FACTOR {
+        switch (factor) {
+            case BlendFactor::Zero: return Diligent::BLEND_FACTOR_ZERO;
+            case BlendFactor::One: return Diligent::BLEND_FACTOR_ONE;
+            case BlendFactor::SrcColor: return Diligent::BLEND_FACTOR_SRC_COLOR;
+            case BlendFactor::InvSrcColor: return Diligent::BLEND_FACTOR_INV_SRC_COLOR;
+            case BlendFactor::SrcAlpha: return Diligent::BLEND_FACTOR_SRC_ALPHA;
+            case BlendFactor::InvSrcAlpha: return Diligent::BLEND_FACTOR_INV_SRC_ALPHA;
+            case BlendFactor::DestColor: return Diligent::BLEND_FACTOR_DEST_COLOR;
+            case BlendFactor::InvDestColor: return Diligent::BLEND_FACTOR_INV_DEST_COLOR;
+            case BlendFactor::DestAlpha: return Diligent::BLEND_FACTOR_DEST_ALPHA;
+            case BlendFactor::InvDestAlpha: return Diligent::BLEND_FACTOR_INV_DEST_ALPHA;
+            case BlendFactor::SrcAlphaSat: return Diligent::BLEND_FACTOR_SRC_ALPHA_SAT;
+            default: return Diligent::BLEND_FACTOR_ONE;
+        }
+    };
+
+    // Map Poko blend operation to Diligent blend operation
+    auto map_blend_op = [](BlendOp op) -> Diligent::BLEND_OPERATION {
+        switch (op) {
+            case BlendOp::Add: return Diligent::BLEND_OPERATION_ADD;
+            case BlendOp::Subtract: return Diligent::BLEND_OPERATION_SUBTRACT;
+            case BlendOp::ReverseSubtract: return Diligent::BLEND_OPERATION_REV_SUBTRACT;
+            case BlendOp::Min: return Diligent::BLEND_OPERATION_MIN;
+            case BlendOp::Max: return Diligent::BLEND_OPERATION_MAX;
+            default: return Diligent::BLEND_OPERATION_ADD;
+        }
+    };
+
+    // Map Poko comparison function to Diligent comparison function
+    auto map_comparison_func = [](ComparisonFunc func) -> Diligent::COMPARISON_FUNCTION {
+        switch (func) {
+            case ComparisonFunc::Never: return Diligent::COMPARISON_FUNC_NEVER;
+            case ComparisonFunc::Less: return Diligent::COMPARISON_FUNC_LESS;
+            case ComparisonFunc::Equal: return Diligent::COMPARISON_FUNC_EQUAL;
+            case ComparisonFunc::LessEqual: return Diligent::COMPARISON_FUNC_LESS_EQUAL;
+            case ComparisonFunc::Greater: return Diligent::COMPARISON_FUNC_GREATER;
+            case ComparisonFunc::NotEqual: return Diligent::COMPARISON_FUNC_NOT_EQUAL;
+            case ComparisonFunc::GreaterEqual: return Diligent::COMPARISON_FUNC_GREATER_EQUAL;
+            case ComparisonFunc::Always: return Diligent::COMPARISON_FUNC_ALWAYS;
+            default: return Diligent::COMPARISON_FUNC_LESS;
+        }
+    };
 
     // Build input layout from vertex layout (M3)
     std::vector<Diligent::LayoutElement> layout_elements;
@@ -205,6 +275,38 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
                     element.ValueType = Diligent::VT_FLOAT32;
                     element.NumComponents = 4;
                     break;
+                case VertexFormat::Int:
+                    element.ValueType = Diligent::VT_INT32;
+                    element.NumComponents = 1;
+                    break;
+                case VertexFormat::Int2:
+                    element.ValueType = Diligent::VT_INT32;
+                    element.NumComponents = 2;
+                    break;
+                case VertexFormat::Int3:
+                    element.ValueType = Diligent::VT_INT32;
+                    element.NumComponents = 3;
+                    break;
+                case VertexFormat::Int4:
+                    element.ValueType = Diligent::VT_INT32;
+                    element.NumComponents = 4;
+                    break;
+                case VertexFormat::UInt:
+                    element.ValueType = Diligent::VT_UINT32;
+                    element.NumComponents = 1;
+                    break;
+                case VertexFormat::UInt2:
+                    element.ValueType = Diligent::VT_UINT32;
+                    element.NumComponents = 2;
+                    break;
+                case VertexFormat::UInt3:
+                    element.ValueType = Diligent::VT_UINT32;
+                    element.NumComponents = 3;
+                    break;
+                case VertexFormat::UInt4:
+                    element.ValueType = Diligent::VT_UINT32;
+                    element.NumComponents = 4;
+                    break;
                 default:
                     element.ValueType = Diligent::VT_FLOAT32;
                     element.NumComponents = 1;
@@ -223,8 +325,35 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     pso_ci.GraphicsPipeline.RTVFormats[0] = color_format;
     pso_ci.GraphicsPipeline.DSVFormat = depth_format;
     pso_ci.GraphicsPipeline.PrimitiveTopology = topology;
-    pso_ci.GraphicsPipeline.DepthStencilDesc.DepthEnable = desc.depth_enable ? Diligent::True : Diligent::False;
+    
+    // Configure blend state
+    pso_ci.GraphicsPipeline.BlendDesc.RenderTargets[0].BlendEnable = desc.blend_state.blend_enable ? Diligent::True : Diligent::False;
+    pso_ci.GraphicsPipeline.BlendDesc.RenderTargets[0].SrcBlend = map_blend_factor(desc.blend_state.src_blend);
+    pso_ci.GraphicsPipeline.BlendDesc.RenderTargets[0].DestBlend = map_blend_factor(desc.blend_state.dest_blend);
+    pso_ci.GraphicsPipeline.BlendDesc.RenderTargets[0].BlendOp = map_blend_op(desc.blend_state.blend_op);
+    pso_ci.GraphicsPipeline.BlendDesc.RenderTargets[0].SrcBlendAlpha = map_blend_factor(desc.blend_state.src_blend_alpha);
+    pso_ci.GraphicsPipeline.BlendDesc.RenderTargets[0].DestBlendAlpha = map_blend_factor(desc.blend_state.dest_blend_alpha);
+    pso_ci.GraphicsPipeline.BlendDesc.RenderTargets[0].BlendOpAlpha = map_blend_op(desc.blend_state.blend_op_alpha);
+    pso_ci.GraphicsPipeline.BlendDesc.RenderTargets[0].RenderTargetWriteMask = static_cast<Diligent::COLOR_MASK>(desc.blend_state.render_target_write_mask);
+    
+    // Configure depth stencil state
+    pso_ci.GraphicsPipeline.DepthStencilDesc.DepthEnable = desc.depth_stencil.depth_enable ? Diligent::True : Diligent::False;
+    pso_ci.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable = desc.depth_stencil.depth_write_enable ? Diligent::True : Diligent::False;
+    pso_ci.GraphicsPipeline.DepthStencilDesc.DepthFunc = map_comparison_func(desc.depth_stencil.depth_func);
+    pso_ci.GraphicsPipeline.DepthStencilDesc.StencilEnable = desc.depth_stencil.stencil_enable ? Diligent::True : Diligent::False;
+    pso_ci.GraphicsPipeline.DepthStencilDesc.StencilReadMask = desc.depth_stencil.stencil_read_mask;
+    pso_ci.GraphicsPipeline.DepthStencilDesc.StencilWriteMask = desc.depth_stencil.stencil_write_mask;
+    
+    // Configure rasterizer state
     pso_ci.GraphicsPipeline.RasterizerDesc.CullMode = cull_mode;
+    pso_ci.GraphicsPipeline.RasterizerDesc.FrontCounterClockwise = desc.rasterizer.front_counter_clockwise ? Diligent::True : Diligent::False;
+    pso_ci.GraphicsPipeline.RasterizerDesc.DepthBias = desc.rasterizer.depth_bias;
+    pso_ci.GraphicsPipeline.RasterizerDesc.DepthBiasClamp = desc.rasterizer.depth_bias_clamp;
+    pso_ci.GraphicsPipeline.RasterizerDesc.SlopeScaledDepthBias = desc.rasterizer.slope_scaled_depth_bias;
+    pso_ci.GraphicsPipeline.RasterizerDesc.DepthClipEnable = desc.rasterizer.depth_clip_enable ? Diligent::True : Diligent::False;
+    pso_ci.GraphicsPipeline.RasterizerDesc.ScissorEnable = desc.rasterizer.scissor_enable ? Diligent::True : Diligent::False;
+    pso_ci.GraphicsPipeline.RasterizerDesc.AntialiasedLineEnable = desc.rasterizer.antialiased_line_enable ? Diligent::True : Diligent::False;
+    
     pso_ci.pVS = vs;
     pso_ci.pPS = ps;
     
@@ -240,7 +369,7 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     ps->Release();
 
     if (!pipeline) {
-        std::fprintf(stderr, "Pipeline state creation failed\n");
+        std::fprintf(stderr, "Pipeline state creation failed for '%s'\n", desc.name ? desc.name : "(unnamed)");
         return false;
     }
 

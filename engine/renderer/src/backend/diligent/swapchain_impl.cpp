@@ -18,6 +18,12 @@ bool SwapChain::Impl::initialize(Device* device, void* hwnd, const SwapChainDesc
     
     auto device_impl = get_device_impl(device);
     if (!device_impl) {
+        std::fprintf(stderr, "Invalid device implementation\n");
+        return false;
+    }
+
+    if (!device_impl->device || !device_impl->context || !device_impl->swap_chain) {
+        std::fprintf(stderr, "Device not properly initialized\n");
         return false;
     }
 
@@ -25,8 +31,9 @@ bool SwapChain::Impl::initialize(Device* device, void* hwnd, const SwapChainDesc
     this->context = device_impl->context;
     this->swap_chain = device_impl->swap_chain;
     this->desc = desc;
+    this->poko_device = device;  // Store for validation
 
-    return this->device != nullptr && this->context != nullptr && this->swap_chain != nullptr;
+    return true;
 }
 
 } // namespace poko::render

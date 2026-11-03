@@ -24,6 +24,11 @@ bool SwapChain::resize(uint32_t width, uint32_t height) {
     if (!impl_ || !impl_->swap_chain) {
         return false;
     }
+    // Validate device is still valid
+    if (impl_->poko_device && !impl_->poko_device->is_valid()) {
+        std::fprintf(stderr, "Cannot resize swap chain: device is invalid\n");
+        return false;
+    }
     impl_->swap_chain->Resize(width, height);
     impl_->desc.width = width;
     impl_->desc.height = height;

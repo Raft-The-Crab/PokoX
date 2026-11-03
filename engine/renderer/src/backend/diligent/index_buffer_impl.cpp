@@ -20,11 +20,13 @@ IndexBuffer::Impl::~Impl() {
 
 bool IndexBuffer::Impl::initialize(Device* device, const IndexBufferDesc& desc) {
     if (!device || !device->is_valid()) {
+        std::fprintf(stderr, "Invalid device\n");
         return false;
     }
 
     auto device_impl = get_device_impl(device);
     if (!device_impl || !device_impl->device) {
+        std::fprintf(stderr, "Invalid device implementation\n");
         return false;
     }
 
@@ -36,14 +38,22 @@ bool IndexBuffer::Impl::initialize(Device* device, const IndexBufferDesc& desc) 
         std::fprintf(stderr, "Invalid index buffer size: 0\n");
         return false;
     }
-
-    // Validate format
+    if (!desc.data && desc.size > 0) {
+        std::fprintf(stderr, "Null data pointer with non-zero size\n");
+        return false;
+    }
     if (desc.format != IndexFormat::UInt16 && desc.format != IndexFormat::UInt32) {
         std::fprintf(stderr, "Invalid index format: %d\n", static_cast<int>(desc.format));
         return false;
     }
+    // Validate size matches format (calculate index count from size)
+    uint32_t index_count = (desc.format == IndexFormat::UInt16) ? desc.size / 2 : desc.size / 4;
+    if (index_count == 0) {
+        std::fprintf(stderr, "Invalid index buffer size for format\n");
+        return false;
+    }
 
-    // Copy data if provided
+    // Copy data for lifetime management
     if (desc.data && desc.size > 0) {
         data.resize(desc.size);
         std::memcpy(data.data(), desc.data, desc.size);
@@ -54,7 +64,7 @@ bool IndexBuffer::Impl::initialize(Device* device, const IndexBufferDesc& desc) 
     bd.Name = desc.name ? desc.name : "Poko IndexBuffer";
     bd.Size = desc.size;
     bd.BindFlags = Diligent::BIND_INDEX_BUFFER;
-    bd.Usage = Diligent::USAGE_IMMUTABLE;  // M4: Static for now
+    bd.Usage = Diligent::USAGE_IMMUTABLE;
 
     Diligent::BufferData buffer_data;
     buffer_data.pData = data.empty() ? nullptr : data.data();

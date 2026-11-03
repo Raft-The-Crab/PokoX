@@ -15,6 +15,8 @@
 #include "pipeline.h"
 #include "vertex_buffer.h"
 #include "index_buffer.h"
+#include "texture.h"
+#include "material.h"
 #include <cstdint>
 
 namespace poko::render {
@@ -121,6 +123,23 @@ public:
      * @return true on success, false on failure.
      */
     bool draw_indexed(uint32_t index_count, uint32_t start_index = 0);
+
+    /**
+     * @brief Binds a texture to a shader resource slot.
+     *
+     * @param texture The texture. Must be valid.
+     * @param slot Shader resource slot (0-based).
+     * @return true on success, false on failure.
+     */
+    bool set_texture(Texture* texture, uint32_t slot = 0);
+
+    /**
+     * @brief Binds a material (groups texture-slot bindings).
+     *
+     * @param material The material. Must be valid.
+     * @return true on success, false on failure.
+     */
+    bool set_material(Material* material);
 
     /**
      * @brief Flushes pending commands.

@@ -30,6 +30,7 @@ struct Device::Impl {
     BackendType backend_type = BackendType::Unknown;
     uint32_t api_major = 0;
     uint32_t api_minor = 0;
+    std::string last_error;
 
     Impl();
     ~Impl();

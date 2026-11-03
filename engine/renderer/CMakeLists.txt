@@ -27,6 +27,8 @@ set(POKO_RENDERER_PUBLIC_HEADERS
     public/poko/render/pipeline.h
     public/poko/render/vertex_buffer.h
     public/poko/render/index_buffer.h
+    public/poko/render/texture.h
+    public/poko/render/material.h
 )
 
 # -----------------------------------------------------------------------------
@@ -51,6 +53,12 @@ set(POKO_RENDERER_SOURCES
     # IndexBuffer
     src/index_buffer/index_buffer.cpp
 
+    # Texture
+    src/texture/texture.cpp
+
+    # Material
+    src/material/material.cpp
+
     # Backend: Diligent implementation
     src/backend/diligent/device_impl.cpp
     src/backend/diligent/swapchain_impl.cpp
@@ -58,6 +66,8 @@ set(POKO_RENDERER_SOURCES
     src/backend/diligent/pipeline_impl.cpp
     src/backend/diligent/vertex_buffer_impl.cpp
     src/backend/diligent/index_buffer_impl.cpp
+    src/backend/diligent/texture_impl.cpp
+    src/backend/diligent/material_impl.cpp
 )
 
 # -----------------------------------------------------------------------------

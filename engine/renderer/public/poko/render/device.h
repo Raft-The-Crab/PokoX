@@ -32,9 +32,19 @@ enum class BackendType : uint32_t {
  */
 enum class TextureFormat : uint32_t {
     Unknown = 0,
+    // Color formats
     RGBA8_UNORM = 1,
     RGBA8_SRGB = 2,
-    D32_FLOAT = 3
+    RG8_UNORM = 3,
+    R8_UNORM = 4,
+    RGBA16_FLOAT = 5,
+    RGBA16_UNORM = 6,
+    RGBA32_FLOAT = 7,
+    // Depth formats
+    D16_UNORM = 8,
+    D24_UNORM_S8_UINT = 9,
+    D32_FLOAT = 10,
+    D32_FLOAT_S8_UINT = 11
 };
 
 /**
@@ -72,6 +82,11 @@ public:
      * @brief Returns true if the device is valid (backend initialized successfully).
      */
     bool is_valid() const;
+
+    /**
+     * @brief Returns the last error message from device operations.
+     */
+    const char* get_last_error() const;
 
     /**
      * @brief Initializes the graphics device from a native window handle.

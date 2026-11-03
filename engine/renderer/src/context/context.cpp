@@ -9,6 +9,8 @@
 #include "backend/diligent/internal/vertex_buffer_impl.h"
 #include "backend/diligent/internal/index_buffer_impl.h"
 #include "backend/diligent/internal/swapchain_impl.h"
+#include "backend/diligent/internal/texture_impl.h"
+#include "backend/diligent/internal/material_impl.h"
 
 #include <new>
 
@@ -65,8 +67,13 @@ bool Context::set_pipeline_state(PipelineState* pipeline) {
         return false;
     }
 
-    // Validate device compatibility if we have a device reference
-    // (For M2, we trust the caller provided compatible objects)
+    // Validate device compatibility
+    if (impl_->poko_device && pipeline_impl->device) {
+        if (impl_->poko_device != pipeline_impl->device) {
+            std::fprintf(stderr, "Pipeline created from different device\n");
+            return false;
+        }
+    }
 
     impl_->context->SetPipelineState(pipeline_impl->pipeline);
     
@@ -114,6 +121,14 @@ bool Context::set_vertex_buffer(VertexBuffer* buffer) {
         return false;
     }
 
+    // Validate device compatibility
+    if (impl_->poko_device && buffer_impl->device) {
+        if (impl_->poko_device != buffer_impl->device) {
+            std::fprintf(stderr, "VertexBuffer created from different device\n");
+            return false;
+        }
+    }
+
     // Bind vertex buffer to slot 0 with stride from descriptor
     uint32_t stride = buffer_impl->desc.stride > 0 ? buffer_impl->desc.stride : 12;  // Default to Float3
     
@@ -138,6 +153,14 @@ bool Context::set_index_buffer(IndexBuffer* buffer) {
     auto buffer_impl = buffer->impl_;
     if (!buffer_impl || !buffer_impl->buffer) {
         return false;
+    }
+
+    // Validate device compatibility
+    if (impl_->poko_device && buffer_impl->device) {
+        if (impl_->poko_device != buffer_impl->device) {
+            std::fprintf(stderr, "IndexBuffer created from different device\n");
+            return false;
+        }
     }
 
     // Map Poko format to Diligent format
@@ -183,6 +206,44 @@ bool Context::draw_indexed(uint32_t index_count, uint32_t start_index) {
     draw_attribs.Flags = Diligent::DRAW_FLAG_NONE;
     
     impl_->context->DrawIndexed(draw_attribs);
+    return true;
+}
+
+bool Context::set_texture(Texture* texture, uint32_t slot) {
+    // M6: Texture binding should go through materials for proper SRB management
+    // For simplicity, we'll defer direct texture binding and require set_material
+    (void)texture;
+    (void)slot;
+    std::fprintf(stderr, "M6: Use set_material() for texture binding (SRB management)\n");
+    return false;
+}
+
+bool Context::set_material(Material* material) {
+    if (!impl_ || !impl_->context) {
+        return false;
+    }
+    
+    if (!material || !material->is_valid()) {
+        return false;
+    }
+
+    auto material_impl = material->impl_;
+    if (!material_impl || !material_impl->srb) {
+        return false;
+    }
+
+    // Validate device compatibility
+    if (impl_->poko_device && material_impl->device) {
+        if (impl_->poko_device != material_impl->device) {
+            std::fprintf(stderr, "Material created from different device\n");
+            return false;
+        }
+    }
+
+    // Commit shader resources from material's SRB
+    impl_->context->CommitShaderResources(material_impl->srb,
+        Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
     return true;
 }
 

@@ -25,11 +25,22 @@ Device::Impl::~Impl() {
         device->Release();
         device = nullptr;
     }
+    last_error.clear();
 }
 
 bool Device::Impl::initialize(void* hwnd, uint32_t width, uint32_t height) {
+    if (!hwnd) {
+        last_error = "Native window handle is null";
+        return false;
+    }
+    if (width == 0 || height == 0) {
+        last_error = "Invalid window dimensions (width or height is zero)";
+        return false;
+    }
+
     Diligent::IEngineFactoryOpenGL* factory = Diligent::GetEngineFactoryOpenGL();
     if (factory == nullptr) {
+        last_error = "Failed to get OpenGL engine factory";
         return false;
     }
 
@@ -45,6 +56,7 @@ bool Device::Impl::initialize(void* hwnd, uint32_t width, uint32_t height) {
     factory->CreateDeviceAndSwapChainGL(engine_ci, &device, &context, sc_desc, &swap_chain);
 
     if (device == nullptr || context == nullptr || swap_chain == nullptr) {
+        last_error = "Failed to create device, context, or swap chain";
         // Clean up any partially created resources
         if (swap_chain) {
             swap_chain->Release();
@@ -78,7 +90,7 @@ bool Device::Impl::initialize(void* hwnd, uint32_t width, uint32_t height) {
 
     api_major = device_info.APIVersion.Major;
     api_minor = device_info.APIVersion.Minor;
-
+    last_error.clear();
     return true;
 }
 

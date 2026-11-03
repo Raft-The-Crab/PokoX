@@ -26,7 +26,15 @@ enum class VertexFormat : uint32_t {
     Float = 1,      // 1x float (4 bytes)
     Float2 = 2,     // 2x float (8 bytes)
     Float3 = 3,     // 3x float (12 bytes) - M3: Position
-    Float4 = 4      // 4x float (16 bytes)
+    Float4 = 4,     // 4x float (16 bytes)
+    Int = 5,        // 1x int32 (4 bytes)
+    Int2 = 6,       // 2x int32 (8 bytes)
+    Int3 = 7,       // 3x int32 (12 bytes)
+    Int4 = 8,       // 4x int32 (16 bytes)
+    UInt = 9,       // 1x uint32 (4 bytes)
+    UInt2 = 10,     // 2x uint32 (8 bytes)
+    UInt3 = 11,     // 3x uint32 (12 bytes)
+    UInt4 = 12      // 4x uint32 (16 bytes)
 };
 
 /**

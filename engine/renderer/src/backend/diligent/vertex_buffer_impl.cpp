@@ -20,11 +20,13 @@ VertexBuffer::Impl::~Impl() {
 
 bool VertexBuffer::Impl::initialize(Device* device, const BufferDesc& desc) {
     if (!device || !device->is_valid()) {
+        std::fprintf(stderr, "Invalid device\n");
         return false;
     }
 
     auto device_impl = get_device_impl(device);
     if (!device_impl || !device_impl->device) {
+        std::fprintf(stderr, "Invalid device implementation\n");
         return false;
     }
 
@@ -36,8 +38,20 @@ bool VertexBuffer::Impl::initialize(Device* device, const BufferDesc& desc) {
         std::fprintf(stderr, "Invalid buffer size: 0\n");
         return false;
     }
+    if (!desc.data && desc.size > 0) {
+        std::fprintf(stderr, "Null data pointer with non-zero size\n");
+        return false;
+    }
+    if (desc.stride == 0) {
+        std::fprintf(stderr, "Invalid stride: 0\n");
+        return false;
+    }
+    if (desc.size % desc.stride != 0) {
+        std::fprintf(stderr, "Buffer size (%u) is not a multiple of stride (%u)\n", desc.size, desc.stride);
+        return false;
+    }
 
-    // Copy data if provided
+    // Copy data for lifetime management
     if (desc.data && desc.size > 0) {
         data.resize(desc.size);
         std::memcpy(data.data(), desc.data, desc.size);
@@ -48,7 +62,7 @@ bool VertexBuffer::Impl::initialize(Device* device, const BufferDesc& desc) {
     bd.Name = desc.name ? desc.name : "Poko VertexBuffer";
     bd.Size = desc.size;
     bd.BindFlags = Diligent::BIND_VERTEX_BUFFER;
-    bd.Usage = Diligent::USAGE_IMMUTABLE;  // M3: Static for now
+    bd.Usage = Diligent::USAGE_IMMUTABLE;
 
     Diligent::BufferData buffer_data;
     buffer_data.pData = data.empty() ? nullptr : data.data();

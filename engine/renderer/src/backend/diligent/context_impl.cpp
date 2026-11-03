@@ -14,12 +14,19 @@ Context::Impl::Impl() = default;
 Context::Impl::~Impl() = default;
 
 bool Context::Impl::initialize(Device* device, SwapChain* swap_chain) {
+    if (!device || !device->is_valid()) {
+        std::fprintf(stderr, "Invalid device\n");
+        return false;
+    }
+
     auto device_impl = get_device_impl(device);
-    if (!device_impl) {
+    if (!device_impl || !device_impl->context) {
+        std::fprintf(stderr, "Invalid device implementation\n");
         return false;
     }
 
     this->context = device_impl->context;
+    this->poko_device = device;
 
     auto swapchain_impl = get_swapchain_impl(swap_chain);
     if (swapchain_impl) {

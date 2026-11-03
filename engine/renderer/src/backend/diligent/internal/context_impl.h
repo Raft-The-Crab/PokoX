@@ -27,6 +27,7 @@ struct Context::Impl {
     Diligent::IDeviceContext* context = nullptr;
     Diligent::ISwapChain* swap_chain = nullptr;
     Diligent::VALUE_TYPE bound_index_format = Diligent::VT_UINT16;  // M4: Track bound index format
+    poko::render::Device* poko_device = nullptr;  // Non-owning reference for validation
 
     Impl();
     ~Impl();

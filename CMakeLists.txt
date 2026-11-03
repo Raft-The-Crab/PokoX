@@ -53,6 +53,8 @@ option(POKO_BUILD_M1        "Build the M1 engine foundation demo" OFF)
 option(POKO_BUILD_M2        "Build the M2 minimal scene rendering demo" OFF)
 option(POKO_BUILD_M3        "Build the M3 vertex buffer and mesh rendering demo" OFF)
 option(POKO_BUILD_M4        "Build the M4 index buffer and indexed rendering demo" OFF)
+option(POKO_BUILD_M5        "Build the M5 texture creation demo" OFF)
+option(POKO_BUILD_M6        "Build the M6 material and SRB demo" OFF)
 option(POKO_WITH_DILIGENT   "Build the Diligent Core graphics backend"        ON)
 
 include(CTest)  # defines BUILD_TESTING, registers CTest for `ctest`
@@ -131,6 +133,20 @@ endif()
 # -----------------------------------------------------------------------------
 if(POKO_BUILD_M4)
     add_subdirectory(m4)
+endif()
+
+# -----------------------------------------------------------------------------
+# M5 textures and texture sampling
+# -----------------------------------------------------------------------------
+if(POKO_BUILD_M5)
+    add_subdirectory(m5)
+endif()
+
+# -----------------------------------------------------------------------------
+# M6 materials and shader resource bindings
+# -----------------------------------------------------------------------------
+if(POKO_BUILD_M6)
+    add_subdirectory(m6)
 endif()
 
 # -----------------------------------------------------------------------------

@@ -27,6 +27,7 @@ struct SwapChain::Impl {
     Diligent::IRenderDevice* device = nullptr;
     Diligent::IDeviceContext* context = nullptr;
     SwapChainDesc desc;
+    poko::render::Device* poko_device = nullptr;  // Non-owning reference for validation
 
     Impl();
     ~Impl();
