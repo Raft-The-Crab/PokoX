@@ -9,6 +9,7 @@
 #include "poko/render/texture.h"
 #include "poko/render/material.h"
 #include "poko/render/pipeline.h"
+#include "poko/render/context.h"
 #include "poko/platform/window.h"
 
 #include <SDL.h>
@@ -97,17 +98,21 @@ int main(int argc, char** argv) {
     const char* vs_source = R"(
         #version 330 core
         layout(location = 0) in vec3 inPosition;
+        out vec2 texCoord;
         void main() {
             gl_Position = vec4(inPosition, 1.0);
+            texCoord = inPosition.xy * 0.5 + 0.5;  // Map [-1,1] to [0,1]
         }
     )";
 
     const char* ps_source = R"(
         #version 330 core
         uniform sampler2D g_Texture;
+        in vec2 texCoord;
         out vec4 fragColor;
         void main() {
-            fragColor = vec4(1.0, 0.5, 0.0, 1.0);  // Orange fallback
+            vec4 texColor = texture(g_Texture, texCoord);
+            fragColor = texColor;
         }
     )";
 
@@ -166,6 +171,147 @@ int main(int argc, char** argv) {
     } else {
         std::printf("Material created successfully with SRB\n");
     }
+
+    // Create vertex buffer for triangle
+    const float triangle_vertices[] = {
+        -0.5f, -0.5f, 0.0f,
+         0.5f, -0.5f, 0.0f,
+         0.0f,  0.5f, 0.0f
+    };
+    const uint32_t vertex_count = 3;
+    const uint32_t vertex_size = 3 * sizeof(float);
+    const uint32_t buffer_size = vertex_count * vertex_size;
+
+    poko::render::VertexBuffer vertex_buffer;
+    poko::render::BufferDesc vb_desc;
+    vb_desc.data = triangle_vertices;
+    vb_desc.size = buffer_size;
+    vb_desc.stride = vertex_size;
+    vb_desc.name = "TriangleVertexBuffer";
+
+    auto vb_result = vertex_buffer.initialize(device, vb_desc);
+    if (vb_result != poko::render::BufferErrorCode::Success) {
+        std::fprintf(stderr, "Failed to create vertex buffer: %d\n", static_cast<int>(vb_result));
+        engine.shutdown();
+        return 1;
+    }
+
+    std::printf("Vertex buffer created successfully\n");
+
+    // Define vertex layout
+    poko::render::VertexAttribute layout_attr;
+    layout_attr.semantic = poko::render::VertexSemantic::Position;
+    layout_attr.format = poko::render::VertexFormat::Float3;
+    layout_attr.offset = 0;
+
+    poko::render::VertexLayout vertex_layout;
+    vertex_layout.attributes = &layout_attr;
+    vertex_layout.attribute_count = 1;
+    vertex_layout.stride = vertex_size;
+
+    // Recreate pipeline with vertex layout
+    pipeline_desc.vertex_layout = vertex_layout;
+    pipeline_result = pipeline.initialize(device, pipeline_desc);
+    if (pipeline_result != poko::render::PipelineErrorCode::Success) {
+        std::fprintf(stderr, "Pipeline recreation failed: %d\n", static_cast<int>(pipeline_result));
+        engine.shutdown();
+        return 1;
+    }
+
+    std::printf("Pipeline recreated with vertex layout\n");
+
+    // Get context and swap chain for rendering
+    auto* context = engine.context();
+    auto* swap_chain = engine.swap_chain();
+    auto* window = engine.window();
+
+    if (!context || !context->is_valid()) {
+        std::fprintf(stderr, "Failed to get valid context\n");
+        engine.shutdown();
+        return 1;
+    }
+    if (!swap_chain || !swap_chain->is_valid()) {
+        std::fprintf(stderr, "Failed to get valid swap chain\n");
+        engine.shutdown();
+        return 1;
+    }
+    if (!window) {
+        std::fprintf(stderr, "Failed to get valid window\n");
+        engine.shutdown();
+        return 1;
+    }
+
+    std::printf("Starting render loop...\n");
+
+    // Custom render loop
+    bool running = true;
+    uint64_t frame = 0;
+
+    while (running) {
+        // Poll window events
+        poko::platform::WindowEvent event;
+        while (window->poll_event(&event)) {
+            if (event.type == poko::platform::WindowEventType::Quit ||
+                event.type == poko::platform::WindowEventType::Close) {
+                running = false;
+            }
+        }
+
+        if (!running) {
+            break;
+        }
+
+        // Render frame
+        uint32_t width = window->width();
+        uint32_t height = window->height();
+
+        poko::render::Viewport viewport;
+        viewport.x = 0;
+        viewport.y = 0;
+        viewport.width = static_cast<float>(width);
+        viewport.height = static_cast<float>(height);
+        viewport.min_depth = 0.0f;
+        viewport.max_depth = 1.0f;
+        context->set_viewport(viewport);
+
+        // Clear with dark blue
+        poko::render::ClearColor clear_color{0.05f, 0.10f, 0.20f, 1.0f};
+        context->clear_render_target(clear_color);
+
+        // Set render target
+        context->set_render_target(swap_chain);
+
+        // Clear again after binding render target (OpenGL requirement)
+        context->clear_render_target(clear_color);
+
+        // Set pipeline
+        context->set_pipeline_state(&pipeline);
+
+        // Set vertex buffer
+        context->set_vertex_buffer(&vertex_buffer);
+
+        // Set material (binds texture)
+        context->set_material(&material);
+
+        // Draw triangle
+        context->draw(vertex_count);
+
+        // Flush and present
+        context->flush();
+        swap_chain->present();
+
+        ++frame;
+
+        // Frame limit for automated testing
+        if (max_frames > 0 && frame >= max_frames) {
+            running = false;
+        }
+
+        // Simple frame limiter (~60 FPS)
+        SDL_Delay(16);
+    }
+
+    std::printf("Rendered %llu frames\n", static_cast<unsigned long long>(frame));
 
     engine.shutdown();
 

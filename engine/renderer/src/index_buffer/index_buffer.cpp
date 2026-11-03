@@ -40,4 +40,8 @@ bool IndexBuffer::is_valid() const {
     return impl_ != nullptr && impl_->buffer != nullptr;
 }
 
+Device* IndexBuffer::get_device() const {
+    return impl_ ? impl_->device : nullptr;
+}
+
 } // namespace poko::render

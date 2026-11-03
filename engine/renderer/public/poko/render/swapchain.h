@@ -66,6 +66,11 @@ public:
     bool is_valid() const;
 
     /**
+     * @brief Returns the device that created this swap chain.
+     */
+    Device* get_device() const;
+
+    /**
      * @brief Initializes the swap chain from a device and window.
      *
      * @param device The graphics device.

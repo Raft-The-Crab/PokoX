@@ -50,6 +50,10 @@ bool VertexBuffer::Impl::initialize(Device* device, const BufferDesc& desc) {
         std::fprintf(stderr, "Buffer size (%u) is not a multiple of stride (%u)\n", desc.size, desc.stride);
         return false;
     }
+    if (!desc.name) {
+        std::fprintf(stderr, "VertexBuffer must have a name\n");
+        return false;
+    }
 
     // Copy data for lifetime management
     if (desc.data && desc.size > 0) {

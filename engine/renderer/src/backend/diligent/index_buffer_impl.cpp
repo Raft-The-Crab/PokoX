@@ -46,10 +46,19 @@ bool IndexBuffer::Impl::initialize(Device* device, const IndexBufferDesc& desc) 
         std::fprintf(stderr, "Invalid index format: %d\n", static_cast<int>(desc.format));
         return false;
     }
-    // Validate size matches format (calculate index count from size)
-    uint32_t index_count = (desc.format == IndexFormat::UInt16) ? desc.size / 2 : desc.size / 4;
-    if (index_count == 0) {
-        std::fprintf(stderr, "Invalid index buffer size for format\n");
+    if (desc.index_count == 0) {
+        std::fprintf(stderr, "Invalid index count: 0\n");
+        return false;
+    }
+    // Validate size matches format
+    uint32_t expected_size = (desc.format == IndexFormat::UInt16) ? desc.index_count * 2 : desc.index_count * 4;
+    if (desc.size != expected_size) {
+        std::fprintf(stderr, "Buffer size (%u) does not match expected size for format and index count (%u)\n", 
+            desc.size, expected_size);
+        return false;
+    }
+    if (!desc.name) {
+        std::fprintf(stderr, "IndexBuffer must have a name\n");
         return false;
     }
 

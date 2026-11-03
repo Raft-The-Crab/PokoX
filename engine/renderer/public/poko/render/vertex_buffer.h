@@ -125,6 +125,11 @@ public:
      */
     bool is_valid() const;
 
+    /**
+     * @brief Returns the device that created this buffer.
+     */
+    Device* get_device() const;
+
 private:
     struct Impl;
     Impl* impl_;

@@ -112,6 +112,7 @@ int main(int argc, char** argv) {
     poko::render::IndexBufferDesc ib_desc;
     ib_desc.data = triangle_indices;
     ib_desc.size = index_size;
+    ib_desc.index_count = index_count;
     ib_desc.format = poko::render::IndexFormat::UInt16;
     ib_desc.name = "TriangleIndexBuffer";
 

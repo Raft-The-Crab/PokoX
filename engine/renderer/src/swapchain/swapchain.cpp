@@ -45,6 +45,10 @@ bool SwapChain::is_valid() const {
     return impl_ != nullptr && impl_->swap_chain != nullptr;
 }
 
+Device* SwapChain::get_device() const {
+    return impl_ ? impl_->poko_device : nullptr;
+}
+
 bool SwapChain::initialize(Device* device, void* hwnd, const SwapChainDesc& desc) {
     return impl_ && impl_->initialize(device, hwnd, desc);
 }

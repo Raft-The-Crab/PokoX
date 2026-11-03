@@ -33,6 +33,7 @@ enum class IndexFormat : uint32_t {
 struct IndexBufferDesc {
     const void* data = nullptr;  // Initial data (can be null)
     uint32_t size = 0;           // Buffer size in bytes
+    uint32_t index_count = 0;     // Number of indices
     IndexFormat format = IndexFormat::UInt16;
     const char* name = "IndexBuffer";
 };
@@ -83,6 +84,11 @@ public:
      * @brief Returns true if the buffer is valid.
      */
     bool is_valid() const;
+
+    /**
+     * @brief Returns the device that created this buffer.
+     */
+    Device* get_device() const;
 
 private:
     struct Impl;
