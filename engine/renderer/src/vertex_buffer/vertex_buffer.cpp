@@ -41,4 +41,25 @@ Device* VertexBuffer::get_device() const {
     return impl_ ? impl_->device : nullptr;
 }
 
+uint32_t VertexBuffer::get_size() const {
+    return impl_ ? impl_->desc.size : 0;
+}
+
+BufferErrorCode VertexBuffer::update(const void* data, uint32_t size, uint32_t offset) {
+    if (!impl_) {
+        return BufferErrorCode::Unknown;
+    }
+    if (!data) {
+        return BufferErrorCode::InvalidData;
+    }
+    if (size == 0) {
+        return BufferErrorCode::InvalidSize;
+    }
+    if (offset >= (impl_->desc.size > 0 ? impl_->desc.size : 1)) {
+        return BufferErrorCode::InvalidOffset;
+    }
+    
+    return impl_->update(data, size, offset) ? BufferErrorCode::Success : BufferErrorCode::Unknown;
+}
+
 } // namespace poko::render

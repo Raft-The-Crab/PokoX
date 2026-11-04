@@ -44,4 +44,25 @@ Device* IndexBuffer::get_device() const {
     return impl_ ? impl_->device : nullptr;
 }
 
+uint32_t IndexBuffer::get_size() const {
+    return impl_ ? impl_->desc.size : 0;
+}
+
+IndexBufferErrorCode IndexBuffer::update(const void* data, uint32_t size, uint32_t offset) {
+    if (!impl_) {
+        return IndexBufferErrorCode::Unknown;
+    }
+    if (!data) {
+        return IndexBufferErrorCode::InvalidData;
+    }
+    if (size == 0) {
+        return IndexBufferErrorCode::InvalidSize;
+    }
+    if (offset >= (impl_->desc.size > 0 ? impl_->desc.size : 1)) {
+        return IndexBufferErrorCode::InvalidOffset;
+    }
+    
+    return impl_->update(data, size, offset) ? IndexBufferErrorCode::Success : IndexBufferErrorCode::UpdateFailed;
+}
+
 } // namespace poko::render

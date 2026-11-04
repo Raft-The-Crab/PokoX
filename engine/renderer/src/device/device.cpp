@@ -28,6 +28,13 @@ uint32_t Device::api_minor_version() const {
     return impl_ ? impl_->api_minor : 0;
 }
 
+DeviceCaps Device::get_caps() const {
+    if (!impl_) {
+        return DeviceCaps{};
+    }
+    return impl_->caps;
+}
+
 bool Device::is_valid() const {
     return impl_ != nullptr && impl_->device != nullptr;
 }

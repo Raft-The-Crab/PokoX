@@ -135,6 +135,24 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 5: get_size returns 0 for invalid buffer
+    {
+        std::printf("Test 5: get_size returns 0 for invalid buffer... ");
+        poko::render::IndexBuffer buffer;
+        assert(buffer.get_size() == 0);
+        std::printf("PASS\n");
+    }
+
+    // Test 6: update on uninitialized buffer fails
+    {
+        std::printf("Test 6: update on uninitialized buffer fails... ");
+        poko::render::IndexBuffer buffer;
+        uint16_t data[3] = {0};
+        auto result = buffer.update(data, 6, 0);
+        assert(result != poko::render::IndexBufferErrorCode::Success);
+        std::printf("PASS\n");
+    }
+
     std::printf("\nAll M4 index buffer tests passed.\n");
     return 0;
 }

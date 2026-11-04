@@ -85,6 +85,24 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 7: get_size returns 0 for invalid buffer
+    {
+        std::printf("Test 7: get_size returns 0 for invalid buffer... ");
+        poko::render::VertexBuffer buffer;
+        assert(buffer.get_size() == 0);
+        std::printf("PASS\n");
+    }
+
+    // Test 8: update on uninitialized buffer fails
+    {
+        std::printf("Test 8: update on uninitialized buffer fails... ");
+        poko::render::VertexBuffer buffer;
+        float data[3] = {0};
+        auto result = buffer.update(data, 12, 0);
+        assert(result != poko::render::BufferErrorCode::Success);
+        std::printf("PASS\n");
+    }
+
     std::printf("\nAll M3 vertex buffer tests passed.\n");
     return 0;
 }

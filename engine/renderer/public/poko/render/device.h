@@ -94,6 +94,11 @@ public:
     uint32_t api_minor_version() const;
 
     /**
+     * @brief Returns the device capabilities.
+     */
+    DeviceCaps get_caps() const;
+
+    /**
      * @brief Returns true if the device is valid (backend initialized successfully).
      */
     bool is_valid() const;

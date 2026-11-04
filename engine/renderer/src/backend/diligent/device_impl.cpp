@@ -90,6 +90,19 @@ bool Device::Impl::initialize(void* hwnd, uint32_t width, uint32_t height) {
 
     api_major = device_info.APIVersion.Major;
     api_minor = device_info.APIVersion.Minor;
+
+    // Populate device capabilities
+    const Diligent::GraphicsAdapterInfo& adapter_info = device->GetAdapterInfo();
+    caps.supports_compute = device_info.Features.ComputeShaders;
+    caps.supports_geometry_shaders = device_info.Features.GeometryShaders;
+    caps.supports_tessellation = device_info.Features.Tessellation;
+    caps.max_texture_size = adapter_info.Texture.MaxTexture2DDimension;
+    caps.max_texture_3d_size = adapter_info.Texture.MaxTexture3DDimension;
+    caps.max_texture_array_layers = adapter_info.Texture.MaxTextureCubeDimension;
+    caps.max_render_targets = 8;  // Diligent default max render targets
+    caps.max_vertex_shader_inputs = 16;  // Diligent default max inputs
+    caps.max_pixel_shader_inputs = 16;  // Diligent default max inputs
+
     last_error.clear();
     return true;
 }

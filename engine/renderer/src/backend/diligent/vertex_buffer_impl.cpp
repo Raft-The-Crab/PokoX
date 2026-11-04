@@ -91,4 +91,37 @@ bool VertexBuffer::Impl::initialize(Device* device, const BufferDesc& desc) {
     return true;
 }
 
+bool VertexBuffer::Impl::update(const void* data_ptr, uint32_t size, uint32_t offset) {
+    if (!buffer) {
+        std::fprintf(stderr, "VertexBuffer '%s': Cannot update uninitialized buffer\n", desc.name);
+        return false;
+    }
+
+    auto device_impl = get_device_impl(device);
+    if (!device_impl || !device_impl->context) {
+        std::fprintf(stderr, "Invalid device implementation\n");
+        return false;
+    }
+
+    // Validate inputs
+    if (!data_ptr) {
+        std::fprintf(stderr, "VertexBuffer '%s': Null data pointer\n", desc.name);
+        return false;
+    }
+    if (size == 0) {
+        std::fprintf(stderr, "VertexBuffer '%s': Invalid update size: 0\n", desc.name);
+        return false;
+    }
+    if (offset + size > desc.size) {
+        std::fprintf(stderr, "VertexBuffer '%s': Update range [offset=%u, size=%u] exceeds buffer size (%u)\n",
+            desc.name, offset, size, desc.size);
+        return false;
+    }
+
+    // Update buffer using context's UpdateBuffer
+    device_impl->context->UpdateBuffer(buffer, offset, size, data_ptr, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+    return true;
+}
+
 } // namespace poko::render

@@ -47,7 +47,9 @@ enum class IndexBufferErrorCode : int32_t {
     InvalidData = -3,
     InvalidSize = -4,
     InvalidFormat = -5,
-    BufferCreationFailed = -6
+    InvalidOffset = -6,
+    BufferCreationFailed = -7,
+    UpdateFailed = -8
 };
 
 /**
@@ -88,6 +90,21 @@ public:
      * @brief Returns the device that created this buffer.
      */
     Device* get_device() const;
+
+    /**
+     * @brief Returns the buffer size in bytes.
+     */
+    uint32_t get_size() const;
+
+    /**
+     * @brief Updates the buffer contents dynamically.
+     *
+     * @param data Pointer to new data.
+     * @param size Size of data in bytes.
+     * @param offset Byte offset into the buffer (default 0).
+     * @return IndexBufferErrorCode::Success on success, error code on failure.
+     */
+    IndexBufferErrorCode update(const void* data, uint32_t size, uint32_t offset = 0);
 
 private:
     struct Impl;

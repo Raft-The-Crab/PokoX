@@ -131,6 +131,21 @@ public:
      */
     Device* get_device() const;
 
+    /**
+     * @brief Returns the buffer size in bytes.
+     */
+    uint32_t get_size() const;
+
+    /**
+     * @brief Updates the buffer contents dynamically.
+     *
+     * @param data Pointer to new data.
+     * @param size Size of data in bytes.
+     * @param offset Byte offset into the buffer (default 0).
+     * @return BufferErrorCode::Success on success, error code on failure.
+     */
+    BufferErrorCode update(const void* data, uint32_t size, uint32_t offset = 0);
+
 private:
     struct Impl;
     Impl* impl_;

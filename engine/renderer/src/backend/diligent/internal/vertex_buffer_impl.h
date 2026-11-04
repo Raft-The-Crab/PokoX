@@ -23,6 +23,7 @@ struct VertexBuffer::Impl {
     ~Impl();
 
     bool initialize(Device* device, const BufferDesc& desc);
+    bool update(const void* data, uint32_t size, uint32_t offset);
 };
 
 } // namespace poko::render
