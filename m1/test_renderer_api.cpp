@@ -76,6 +76,15 @@ int main() {
         std::printf("PASS (API exists)\n");
     }
 
+    // Test 8: SwapChain format getters return Unknown for invalid swap chain
+    {
+        std::printf("Test 8: SwapChain format getters return Unknown for invalid swap chain... ");
+        poko::render::SwapChain swap_chain;
+        assert(swap_chain.get_color_format() == poko::render::TextureFormat::Unknown);
+        assert(swap_chain.get_depth_format() == poko::render::TextureFormat::Unknown);
+        std::printf("PASS\n");
+    }
+
     std::printf("\nAll renderer API tests passed.\n");
     return 0;
 }

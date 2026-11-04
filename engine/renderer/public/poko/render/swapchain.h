@@ -71,6 +71,16 @@ public:
     Device* get_device() const;
 
     /**
+     * @brief Returns the color format of the swap chain.
+     */
+    TextureFormat get_color_format() const;
+
+    /**
+     * @brief Returns the depth format of the swap chain.
+     */
+    TextureFormat get_depth_format() const;
+
+    /**
      * @brief Initializes the swap chain from a device and window.
      *
      * @param device The graphics device.

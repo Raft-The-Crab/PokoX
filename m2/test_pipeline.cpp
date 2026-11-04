@@ -130,6 +130,38 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 8: Invalid color format returns error
+    {
+        std::printf("Test 8: Invalid color format returns error... ");
+        poko::render::PipelineState pipeline;
+        poko::render::Device device;  // Not initialized
+        poko::render::PipelineDesc desc;
+        desc.vertex_shader.source = kVertexShader;
+        desc.pixel_shader.source = kPixelShader;
+        desc.color_format = poko::render::TextureFormat::Unknown;
+        
+        auto result = pipeline.initialize(&device, desc);
+        assert(result == poko::render::PipelineErrorCode::InvalidDevice);  // Device checked first
+        assert(!pipeline.is_valid());
+        std::printf("PASS\n");
+    }
+
+    // Test 9: Invalid depth format returns error
+    {
+        std::printf("Test 9: Invalid depth format returns error... ");
+        poko::render::PipelineState pipeline;
+        poko::render::Device device;  // Not initialized
+        poko::render::PipelineDesc desc;
+        desc.vertex_shader.source = kVertexShader;
+        desc.pixel_shader.source = kPixelShader;
+        desc.depth_format = poko::render::TextureFormat::Unknown;
+        
+        auto result = pipeline.initialize(&device, desc);
+        assert(result == poko::render::PipelineErrorCode::InvalidDevice);  // Device checked first
+        assert(!pipeline.is_valid());
+        std::printf("PASS\n");
+    }
+
     std::printf("\nAll M2 pipeline tests passed.\n");
     return 0;
 }

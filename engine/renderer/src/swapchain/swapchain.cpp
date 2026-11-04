@@ -54,6 +54,14 @@ Device* SwapChain::get_device() const {
     return impl_ ? impl_->poko_device : nullptr;
 }
 
+TextureFormat SwapChain::get_color_format() const {
+    return (impl_ && impl_->swap_chain) ? impl_->desc.color_format : TextureFormat::Unknown;
+}
+
+TextureFormat SwapChain::get_depth_format() const {
+    return (impl_ && impl_->swap_chain) ? impl_->desc.depth_format : TextureFormat::Unknown;
+}
+
 bool SwapChain::initialize(Device* device, void* hwnd, const SwapChainDesc& desc) {
     return impl_ && impl_->initialize(device, hwnd, desc);
 }

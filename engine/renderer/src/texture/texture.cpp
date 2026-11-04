@@ -44,4 +44,8 @@ Device* Texture::get_device() const {
     return impl_ ? impl_->device : nullptr;
 }
 
+TextureFormat Texture::get_format() const {
+    return (impl_ && impl_->texture) ? impl_->desc.format : TextureFormat::Unknown;
+}
+
 } // namespace poko::render

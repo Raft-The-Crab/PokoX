@@ -97,6 +97,14 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 7: get_format returns Unknown for invalid texture
+    {
+        std::printf("Test 7: get_format returns Unknown for invalid texture... ");
+        poko::render::Texture texture;
+        assert(texture.get_format() == poko::render::TextureFormat::Unknown);
+        std::printf("PASS\n");
+    }
+
     std::printf("\nAll M5 texture tests passed.\n");
     std::printf("Note: Texture binding is deferred to M6 (requires SRB management).\n");
     return 0;

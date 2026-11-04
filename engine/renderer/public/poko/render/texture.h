@@ -106,6 +106,11 @@ public:
      */
     Device* get_device() const;
 
+    /**
+     * @brief Returns the texture format.
+     */
+    TextureFormat get_format() const;
+
 private:
     struct Impl;
     Impl* impl_;

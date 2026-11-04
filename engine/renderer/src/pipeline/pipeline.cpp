@@ -27,6 +27,16 @@ PipelineErrorCode PipelineState::initialize(Device* device, const PipelineDesc& 
         return PipelineErrorCode::InvalidDevice;
     }
     
+    // Validate formats
+    if (desc.color_format == TextureFormat::Unknown) {
+        std::fprintf(stderr, "Pipeline '%s': Invalid color format (Unknown)\n", desc.name ? desc.name : "unnamed");
+        return PipelineErrorCode::IncompatibleFormat;
+    }
+    if (desc.depth_format == TextureFormat::Unknown) {
+        std::fprintf(stderr, "Pipeline '%s': Invalid depth format (Unknown)\n", desc.name ? desc.name : "unnamed");
+        return PipelineErrorCode::IncompatibleFormat;
+    }
+    
     return impl_->initialize(device, desc) ? PipelineErrorCode::Success : PipelineErrorCode::PipelineCreationFailed;
 }
 
