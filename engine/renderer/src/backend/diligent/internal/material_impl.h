@@ -23,6 +23,7 @@ struct Material::Impl {
     std::vector<std::string> cb_shader_variables;  // Constant buffer shader variable names (M7)
     MaterialDesc desc;
     Device* device = nullptr;
+    std::string last_error;  // Last error message
 
     Impl() = default;
     ~Impl();

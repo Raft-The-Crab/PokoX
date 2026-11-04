@@ -28,11 +28,13 @@ PipelineState::Impl::~Impl() {
 
 bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     if (!device || !device->is_valid()) {
+        last_error = "Device is invalid";
         return false;
     }
 
     auto device_impl = get_device_impl(device);
     if (!device_impl || !device_impl->device) {
+        last_error = "Failed to get device implementation";
         return false;
     }
 
@@ -49,27 +51,27 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
 
     // Validate inputs
     if (!desc.name) {
-        std::fprintf(stderr, "Pipeline must have a name\n");
+        last_error = "Pipeline must have a name";
         return false;
     }
     if (desc.vertex_shader.type != ShaderType::Vertex) {
-        std::fprintf(stderr, "Pipeline '%s': Invalid vertex shader type\n", desc.name);
+        last_error = "Invalid vertex shader type";
         return false;
     }
     if (desc.pixel_shader.type != ShaderType::Pixel) {
-        std::fprintf(stderr, "Pipeline '%s': Invalid pixel shader type\n", desc.name);
+        last_error = "Invalid pixel shader type";
         return false;
     }
     if (vertex_shader_source.empty() || pixel_shader_source.empty()) {
-        std::fprintf(stderr, "Pipeline '%s': Shader source is empty\n", desc.name);
+        last_error = "Shader source is empty";
         return false;
     }
     if (!desc.vertex_shader.entry_point) {
-        std::fprintf(stderr, "Pipeline '%s': Vertex shader entry point is null\n", desc.name);
+        last_error = "Vertex shader entry point is null";
         return false;
     }
     if (!desc.pixel_shader.entry_point) {
-        std::fprintf(stderr, "Pipeline '%s': Pixel shader entry point is null\n", desc.name);
+        last_error = "Pixel shader entry point is null";
         return false;
     }
 
@@ -85,7 +87,7 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     device_impl->device->CreateShader(shader_ci, &vs);
 
     if (!vs) {
-        std::fprintf(stderr, "Vertex shader compilation failed for pipeline '%s'\n", desc.name ? desc.name : "(unnamed)");
+        last_error = "Vertex shader compilation failed";
         return false;
     }
 
@@ -98,7 +100,7 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     device_impl->device->CreateShader(shader_ci, &ps);
 
     if (!ps) {
-        std::fprintf(stderr, "Pixel shader compilation failed for pipeline '%s'\n", desc.name ? desc.name : "(unnamed)");
+        last_error = "Pixel shader compilation failed";
         vs->Release();
         return false;
     }
@@ -236,10 +238,12 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     if (desc.vertex_layout.attributes && desc.vertex_layout.attribute_count > 0) {
         for (uint32_t i = 0; i < desc.vertex_layout.attribute_count; ++i) {
             const auto& attr = desc.vertex_layout.attributes[i];
-            
+
             Diligent::LayoutElement element;
-            element.InputIndex = 0;  // M3: Single input slot
-            
+
+            // M9: Use input_slot from attribute (default 0 for vertex data)
+            element.InputIndex = attr.input_slot;
+
             // Map semantic to slot (M3 simplified)
             const char* semantic_name = "ATTRIBUTE";
             switch (attr.semantic) {
@@ -259,15 +263,21 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
                     semantic_name = "ATTRIBUTE";
                     break;
             }
-            
+
             element.HLSLSemantic = semantic_name;
-            element.InputIndex = 0;
             element.ValueType = Diligent::VT_FLOAT32;  // Default, will override below
             element.RelativeOffset = attr.offset;
-            element.BufferSlot = 0;
+            element.BufferSlot = attr.input_slot;  // M9: Buffer slot matches input slot
             element.NumComponents = 1;  // Default, will override below
             element.IsNormalized = false;
-            element.Frequency = Diligent::INPUT_ELEMENT_FREQUENCY_PER_VERTEX;
+
+            // M9: Set frequency based on instance_data_step_rate
+            if (attr.instance_data_step_rate > 0) {
+                element.Frequency = Diligent::INPUT_ELEMENT_FREQUENCY_PER_INSTANCE;
+                element.InstanceDataStepRate = attr.instance_data_step_rate;
+            } else {
+                element.Frequency = Diligent::INPUT_ELEMENT_FREQUENCY_PER_VERTEX;
+            }
             
             // Map format
             switch (attr.format) {
@@ -334,49 +344,43 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     if (desc.resource_signature.resources && desc.resource_signature.resource_count > 0) {
         // Validate resource count limit
         if (desc.resource_signature.resource_count > 32) {
-            std::fprintf(stderr, "Resource signature '%s' has too many resources (%u > 32)\n",
-                desc.resource_signature.name ? desc.resource_signature.name : "(unnamed)",
-                desc.resource_signature.resource_count);
+            last_error = "Resource signature has too many resources (> 32)";
             vs->Release();
             ps->Release();
             return false;
         }
-        
+
         Diligent::PipelineResourceDesc resources[32];
         uint32_t res_count = 0;
-        
+
         for (uint32_t i = 0; i < desc.resource_signature.resource_count && i < 32; ++i) {
             const auto& res = desc.resource_signature.resources[i];
             if (!res.name) {
-                std::fprintf(stderr, "Resource signature '%s' has null name at index %u\n",
-                    desc.resource_signature.name ? desc.resource_signature.name : "(unnamed)", i);
                 continue;
             }
-            
+
             // Validate array size
             if (res.array_size == 0 || res.array_size > 256) {
-                std::fprintf(stderr, "Resource signature '%s' has invalid array size %u for resource '%s'\n",
-                    desc.resource_signature.name ? desc.resource_signature.name : "(unnamed)",
-                    res.array_size, res.name);
+                last_error = "Invalid array size (must be 1-256)";
                 vs->Release();
                 ps->Release();
                 return false;
             }
-            
+
             Diligent::SHADER_TYPE shader_type = Diligent::SHADER_TYPE_PIXEL;
             if (res.shader_stages & 1) shader_type |= Diligent::SHADER_TYPE_VERTEX;
             if (res.shader_stages & 2) shader_type |= Diligent::SHADER_TYPE_PIXEL;
             if (res.shader_stages & 4) shader_type |= Diligent::SHADER_TYPE_GEOMETRY;
-            
+
             Diligent::SHADER_RESOURCE_TYPE res_type = Diligent::SHADER_RESOURCE_TYPE_TEXTURE_SRV;
             Diligent::SHADER_RESOURCE_VARIABLE_TYPE var_type = Diligent::SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE;
             Diligent::PIPELINE_RESOURCE_FLAGS flags = Diligent::PIPELINE_RESOURCE_FLAG_NONE;
-            
+
             // For combined texture-sampler in OpenGL
             if (res.type == ShaderResourceType::TextureSampler) {
                 flags = Diligent::PIPELINE_RESOURCE_FLAG_COMBINED_SAMPLER;
             }
-            
+
             resources[res_count].Name = res.name;
             resources[res_count].ShaderStages = shader_type;
             resources[res_count].ResourceType = res_type;
@@ -385,26 +389,23 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
             resources[res_count].Flags = flags;
             ++res_count;
         }
-        
+
         if (res_count == 0) {
-            std::fprintf(stderr, "Resource signature '%s' has no valid resources\n",
-                desc.resource_signature.name ? desc.resource_signature.name : "(unnamed)");
+            last_error = "Resource signature has no valid resources";
             vs->Release();
             ps->Release();
             return false;
         }
-        
+
         Diligent::PipelineResourceSignatureDesc signature_desc;
         signature_desc.Name = desc.resource_signature.name ? desc.resource_signature.name : "Poko Resource Signature";
         signature_desc.Resources = resources;
         signature_desc.NumResources = res_count;
         signature_desc.UseCombinedTextureSamplers = true;  // Required for OpenGL
-        
+
         device_impl->device->CreatePipelineResourceSignature(signature_desc, &resource_signature);
         if (!resource_signature) {
-            std::fprintf(stderr, "Failed to create resource signature '%s' for pipeline '%s'\n", 
-                desc.resource_signature.name ? desc.resource_signature.name : "(unnamed)",
-                desc.name ? desc.name : "(unnamed)");
+            last_error = "Failed to create resource signature";
             vs->Release();
             ps->Release();
             return false;
@@ -469,9 +470,7 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     ps->Release();
 
     if (!pipeline) {
-        std::fprintf(stderr, "Pipeline state creation failed for '%s'\n", desc.name ? desc.name : "(unnamed)");
-        vs->Release();
-        ps->Release();
+        last_error = "Pipeline state creation failed";
         return false;
     }
 
@@ -484,10 +483,9 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
     } else {
         pipeline->CreateShaderResourceBinding(&srb, true);
     }
-    
+
     if (!srb) {
-        std::fprintf(stderr, "Shader resource binding creation failed for pipeline '%s'\n", 
-            desc.name ? desc.name : "(unnamed)");
+        last_error = "Shader resource binding creation failed";
         pipeline->Release();
         pipeline = nullptr;
         if (resource_signature) {

@@ -7,6 +7,27 @@
  * Diligent headers.
  *
  * M4 Scope: Supports 16-bit and 32-bit unsigned indices with full validation.
+ *
+ * Usage example:
+ * @code
+ * const uint16_t indices[] = {0, 1, 2};
+ *
+ * IndexBuffer buffer;
+ * IndexBufferDesc desc;
+ * desc.data = indices;
+ * desc.size = sizeof(indices);
+ * desc.index_count = 3;
+ * desc.format = IndexFormat::UInt16;
+ * desc.name = "TriangleIndexBuffer";
+ * buffer.initialize(device, desc);
+ *
+ * // Draw indexed
+ * context.set_index_buffer(&buffer);
+ * context.draw_indexed(3);
+ *
+ * // Update indices dynamically
+ * buffer.update(new_indices, new_size, 0);
+ * @endcode
  */
 
 #ifndef POKO_RENDER_INDEX_BUFFER_H
@@ -78,6 +99,17 @@ public:
      * @param device The graphics device. Must remain valid for buffer lifetime.
      * @param desc Buffer description.
      * @return IndexBufferErrorCode::Success on success, error code on failure.
+     *
+     * Error conditions (call get_last_error() for details):
+     * - Device is null or invalid
+     * - Buffer name is null
+     * - Size is 0
+     * - Null data pointer with non-zero size
+     * - Invalid format (not UInt16 or UInt32)
+     * - Index count is 0
+     * - Size does not match expected size for format and index count
+     * - Size exceeds maximum (256 MB)
+     * - Buffer creation failed
      */
     IndexBufferErrorCode initialize(Device* device, const IndexBufferDesc& desc);
 
@@ -105,6 +137,11 @@ public:
      * @brief Returns the buffer name.
      */
     const char* get_name() const;
+
+    /**
+     * @brief Returns the last error message from buffer operations.
+     */
+    const char* get_last_error() const;
 
     /**
      * @brief Updates the buffer contents dynamically.

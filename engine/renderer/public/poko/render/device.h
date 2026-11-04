@@ -5,6 +5,25 @@
  * This header contains only Poko types. The Diligent Core implementation lives
  * behind the Pimpl pattern in backend/diligent/. Consumers never need to include
  * Diligent headers.
+ *
+ * The Device is the root graphics object from which all other resources are created.
+ * It represents the graphics adapter and manages resource allocation.
+ *
+ * Usage example:
+ * @code
+ * // Device is typically created by the engine initialization
+ * // Direct usage:
+ * Device device;
+ * DeviceDesc desc;
+ * desc.backend_type = BackendType::OpenGL;
+ * device.initialize(desc);
+ *
+ * // Query device capabilities
+ * auto caps = device.get_caps();
+ * if (caps.compute_shaders) {
+ *     // Compute shaders are supported
+ * }
+ * @endcode
  */
 
 #ifndef POKO_RENDER_DEVICE_H

@@ -20,13 +20,13 @@ ConstantBuffer::Impl::~Impl() {
 
 bool ConstantBuffer::Impl::initialize(Device* device, const ConstantBufferDesc& desc) {
     if (!device || !device->is_valid()) {
-        std::fprintf(stderr, "Invalid device\n");
+        last_error = "Device is invalid";
         return false;
     }
 
     auto device_impl = get_device_impl(device);
     if (!device_impl || !device_impl->device) {
-        std::fprintf(stderr, "Invalid device implementation\n");
+        last_error = "Failed to get device implementation";
         return false;
     }
 
@@ -35,21 +35,21 @@ bool ConstantBuffer::Impl::initialize(Device* device, const ConstantBufferDesc& 
 
     // Validate inputs
     if (!desc.name) {
-        std::fprintf(stderr, "ConstantBuffer must have a name\n");
+        last_error = "ConstantBuffer must have a name";
         return false;
     }
     if (desc.size == 0) {
-        std::fprintf(stderr, "ConstantBuffer '%s': Invalid size: 0\n", desc.name);
+        last_error = "Invalid size: 0";
         return false;
     }
     // Validate std140 alignment (must be multiple of 16 bytes for OpenGL)
     if (desc.size % 16 != 0) {
-        std::fprintf(stderr, "ConstantBuffer '%s': Size (%u) must be a multiple of 16 bytes for std140 layout\n", desc.name, desc.size);
+        last_error = "Size must be a multiple of 16 bytes for std140 layout";
         return false;
     }
     // Validate buffer size limit (typical max)
     if (desc.size > 256 * 1024 * 1024) {  // 256 MB
-        std::fprintf(stderr, "ConstantBuffer '%s': Size (%u MB) exceeds maximum (256 MB)\n", desc.name, desc.size / (1024 * 1024));
+        last_error = "Size exceeds maximum (256 MB)";
         return false;
     }
 
@@ -75,46 +75,46 @@ bool ConstantBuffer::Impl::initialize(Device* device, const ConstantBufferDesc& 
     device_impl->device->CreateBuffer(bd, &buffer_data, &buffer);
 
     if (!buffer) {
-        std::fprintf(stderr, "Failed to create constant buffer\n");
+        last_error = "Failed to create constant buffer";
         return false;
     }
 
+    last_error.clear();
     return true;
 }
 
 bool ConstantBuffer::Impl::update(const void* data_ptr, uint32_t size, uint32_t offset) {
     if (!buffer) {
-        std::fprintf(stderr, "ConstantBuffer '%s': Cannot update uninitialized buffer\n", desc.name);
+        last_error = "Cannot update uninitialized buffer";
         return false;
     }
 
     auto device_impl = get_device_impl(device);
     if (!device_impl || !device_impl->context) {
-        std::fprintf(stderr, "Invalid device implementation\n");
+        last_error = "Failed to get device implementation";
         return false;
     }
 
     // Validate inputs
     if (!data_ptr) {
-        std::fprintf(stderr, "ConstantBuffer '%s': Null data pointer\n", desc.name);
+        last_error = "Null data pointer";
         return false;
     }
     if (size == 0) {
-        std::fprintf(stderr, "ConstantBuffer '%s': Invalid update size: 0\n", desc.name);
+        last_error = "Invalid update size: 0";
         return false;
     }
     if (offset + size > desc.size) {
-        std::fprintf(stderr, "ConstantBuffer '%s': Update range [offset=%u, size=%u] exceeds buffer size (%u)\n",
-            desc.name, offset, size, desc.size);
+        last_error = "Update range exceeds buffer size";
         return false;
     }
 
     // Map the buffer for writing (DISCARD flag tells GPU we're writing the entire buffer)
     void* mapped_data = nullptr;
     device_impl->context->MapBuffer(buffer, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD, mapped_data);
-    
+
     if (!mapped_data) {
-        std::fprintf(stderr, "ConstantBuffer '%s': Failed to map buffer for update\n", desc.name);
+        last_error = "Failed to map buffer for update";
         return false;
     }
 
@@ -123,7 +123,7 @@ bool ConstantBuffer::Impl::update(const void* data_ptr, uint32_t size, uint32_t 
 
     // Unmap the buffer
     device_impl->context->UnmapBuffer(buffer, Diligent::MAP_WRITE);
-
+    last_error.clear();
     return true;
 }
 

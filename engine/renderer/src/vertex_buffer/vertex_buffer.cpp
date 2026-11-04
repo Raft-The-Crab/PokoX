@@ -53,6 +53,13 @@ const char* VertexBuffer::get_name() const {
     return impl_ ? (impl_->desc.name ? impl_->desc.name : "") : "";
 }
 
+const char* VertexBuffer::get_last_error() const {
+    if (!impl_) {
+        return "VertexBuffer implementation is null";
+    }
+    return impl_->last_error.c_str();
+}
+
 BufferErrorCode VertexBuffer::update(const void* data, uint32_t size, uint32_t offset) {
     if (!impl_) {
         return BufferErrorCode::Unknown;

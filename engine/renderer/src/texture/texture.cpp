@@ -52,4 +52,11 @@ const char* Texture::get_name() const {
     return impl_ ? (impl_->desc.name ? impl_->desc.name : "") : "";
 }
 
+const char* Texture::get_last_error() const {
+    if (!impl_) {
+        return "Texture implementation is null";
+    }
+    return impl_->last_error.c_str();
+}
+
 } // namespace poko::render

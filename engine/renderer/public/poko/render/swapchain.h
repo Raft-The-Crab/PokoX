@@ -5,6 +5,26 @@
  * This header contains only Poko types. The Diligent Core implementation lives
  * behind the Pimpl pattern in backend/diligent/. Consumers never need to include
  * Diligent headers.
+ *
+ * The SwapChain manages the presentation surface (e.g., window backbuffer) and
+ * is responsible for presenting rendered frames to the screen.
+ *
+ * Usage example:
+ * @code
+ * SwapChain swap_chain;
+ * SwapChainDesc desc;
+ * desc.width = 1280;
+ * desc.height = 720;
+ * desc.color_format = TextureFormat::RGBA8_UNORM;
+ * desc.depth_format = TextureFormat::D32_FLOAT;
+ * swap_chain.initialize(device, window_handle, desc);
+ *
+ * // Present rendered frame
+ * swap_chain.present();
+ *
+ * // Resize on window resize
+ * swap_chain.resize(new_width, new_height);
+ * @endcode
  */
 
 #ifndef POKO_RENDER_SWAPCHAIN_H

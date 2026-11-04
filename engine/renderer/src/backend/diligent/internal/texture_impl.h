@@ -19,6 +19,7 @@ struct Texture::Impl {
     std::vector<uint8_t> data;  // Copied data for backend reference
     TextureDesc desc;
     Device* device = nullptr;  // Non-owning reference for validation
+    std::string last_error;  // Last error message
 
     Impl() = default;
     ~Impl();

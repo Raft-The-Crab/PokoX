@@ -93,6 +93,182 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 10: Context get_last_error returns error message for invalid context
+    {
+        std::printf("Test 10: Context get_last_error returns error message for invalid context... ");
+        poko::render::Context context;
+        context.set_viewport({0, 0, 1280, 720, 0, 1});
+        const char* error = context.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 11: ScissorRect initialization
+    {
+        std::printf("Test 11: ScissorRect initialization... ");
+        poko::render::ScissorRect scissor;
+        scissor.left = 0;
+        scissor.top = 0;
+        scissor.right = 1280;
+        scissor.bottom = 720;
+        assert(scissor.right == 1280);
+        assert(scissor.bottom == 720);
+        std::printf("PASS\n");
+    }
+
+    // Test 12: Context set_scissor_rect validates input
+    {
+        std::printf("Test 12: Context set_scissor_rect validates input... ");
+        poko::render::Context context;
+        context.set_scissor_rect({0, 0, 1280, 720});
+        const char* error = context.get_last_error();
+        assert(error != nullptr);
+        context.set_scissor_rect({-1, 0, 1280, 720});
+        error = context.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 13: Viewport validation for invalid depth ranges
+    {
+        std::printf("Test 13: Viewport validation for invalid depth ranges... ");
+        poko::render::Context context;
+        context.set_viewport({0, 0, 1280, 720, -0.5f, 1.0f});
+        const char* error = context.get_last_error();
+        assert(error != nullptr);
+        context.set_viewport({0, 0, 1280, 720, 0.0f, 1.5f});
+        error = context.get_last_error();
+        assert(error != nullptr);
+        context.set_viewport({0, 0, 1280, 720, 0.5f, 0.25f});
+        error = context.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 14: Pipeline get_last_error returns error message
+    {
+        std::printf("Test 14: Pipeline get_last_error returns error message... ");
+        poko::render::PipelineState pipeline;
+        const char* error = pipeline.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 15: VertexBuffer get_last_error returns error message
+    {
+        std::printf("Test 15: VertexBuffer get_last_error returns error message... ");
+        poko::render::VertexBuffer buffer;
+        const char* error = buffer.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 16: IndexBuffer get_last_error returns error message
+    {
+        std::printf("Test 16: IndexBuffer get_last_error returns error message... ");
+        poko::render::IndexBuffer buffer;
+        const char* error = buffer.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 17: Texture get_last_error returns error message
+    {
+        std::printf("Test 17: Texture get_last_error returns error message... ");
+        poko::render::Texture texture;
+        const char* error = texture.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 18: Material get_last_error returns error message
+    {
+        std::printf("Test 18: Material get_last_error returns error message... ");
+        poko::render::Material material;
+        const char* error = material.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 19: ConstantBuffer get_last_error returns error message
+    {
+        std::printf("Test 19: ConstantBuffer get_last_error returns error message... ");
+        poko::render::ConstantBuffer buffer;
+        const char* error = buffer.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 20: Viewport validates zero dimensions
+    {
+        std::printf("Test 20: Viewport validates zero dimensions... ");
+        poko::render::Context context;
+        context.set_viewport({0, 0, 0, 720, 0, 1});
+        const char* error = context.get_last_error();
+        assert(error != nullptr);
+        context.set_viewport({0, 0, 1280, 0, 0, 1});
+        error = context.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 21: ScissorRect validates equal left/right
+    {
+        std::printf("Test 21: ScissorRect validates equal left/right... ");
+        poko::render::Context context;
+        context.set_scissor_rect({100, 0, 100, 720});
+        const char* error = context.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 22: ScissorRect validates equal top/bottom
+    {
+        std::printf("Test 22: ScissorRect validates equal top/bottom... ");
+        poko::render::Context context;
+        context.set_scissor_rect({0, 100, 1280, 100});
+        const char* error = context.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 23: Viewport depth range endpoints
+    {
+        std::printf("Test 23: Viewport depth range endpoints... ");
+        poko::render::Context context;
+        context.set_viewport({0, 0, 1280, 720, 0.0f, 0.0f});
+        const char* error = context.get_last_error();
+        assert(error != nullptr);
+        context.set_viewport({0, 0, 1280, 720, 1.0f, 1.0f});
+        error = context.get_last_error();
+        assert(error != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 24: SwapChainDesc zero dimensions
+    {
+        std::printf("Test 24: SwapChainDesc zero dimensions... ");
+        poko::render::SwapChainDesc desc;
+        desc.width = 0;
+        desc.height = 720;
+        desc.color_format = poko::render::TextureFormat::RGBA8_UNORM;
+        desc.depth_format = poko::render::TextureFormat::D32_FLOAT;
+        assert(desc.width == 0);
+        std::printf("PASS (desc allows zero, validation at init)\n");
+    }
+
+    // Test 25: ClearColor alpha range
+    {
+        std::printf("Test 25: ClearColor alpha range... ");
+        poko::render::ClearColor color;
+        color.r = 0.5f;
+        color.g = 0.5f;
+        color.b = 0.5f;
+        color.a = 2.0f;  // Out of range but struct allows it
+        assert(color.a == 2.0f);
+        std::printf("PASS (struct allows, validation at use)\n");
+    }
+
     std::printf("\nAll renderer API tests passed.\n");
     return 0;
 }

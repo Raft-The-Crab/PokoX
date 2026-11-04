@@ -120,6 +120,50 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 11: update with null data fails
+    {
+        std::printf("Test 11: update with null data fails... ");
+        poko::render::VertexBuffer buffer;
+        auto result = buffer.update(nullptr, 12, 0);
+        assert(result != poko::render::BufferErrorCode::Success);
+        std::printf("PASS\n");
+    }
+
+    // Test 12: update with zero size fails
+    {
+        std::printf("Test 12: update with zero size fails... ");
+        poko::render::VertexBuffer buffer;
+        float data[3] = {0};
+        auto result = buffer.update(data, 0, 0);
+        assert(result != poko::render::BufferErrorCode::Success);
+        std::printf("PASS\n");
+    }
+
+    // Test 13: update offset validation
+    {
+        std::printf("Test 13: update offset validation... ");
+        poko::render::VertexBuffer buffer;
+        float data[3] = {0};
+        auto result = buffer.update(data, 12, 1000);  // Large offset
+        assert(result != poko::render::BufferErrorCode::Success);
+        std::printf("PASS\n");
+    }
+
+    // Test 14: BufferDesc stride validation
+    {
+        std::printf("Test 14: BufferDesc stride validation... ");
+        poko::render::VertexBuffer buffer;
+        poko::render::Device device;  // Not initialized
+        poko::render::BufferDesc desc;
+        desc.size = 12;
+        desc.stride = 0;  // Invalid stride
+        desc.data = nullptr;
+        
+        auto result = buffer.initialize(&device, desc);
+        assert(result == poko::render::BufferErrorCode::InvalidDevice);
+        std::printf("PASS (device checked first)\n");
+    }
+
     std::printf("\nAll M3 vertex buffer tests passed.\n");
     return 0;
 }

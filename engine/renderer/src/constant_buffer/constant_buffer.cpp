@@ -66,4 +66,11 @@ const char* ConstantBuffer::get_name() const {
     return impl_ ? (impl_->desc.name ? impl_->desc.name : "") : "";
 }
 
+const char* ConstantBuffer::get_last_error() const {
+    if (!impl_) {
+        return "ConstantBuffer implementation is null";
+    }
+    return impl_->last_error.c_str();
+}
+
 } // namespace poko::render

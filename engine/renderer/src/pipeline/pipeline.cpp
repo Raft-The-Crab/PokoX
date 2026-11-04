@@ -21,23 +21,30 @@ PipelineErrorCode PipelineState::initialize(Device* device, const PipelineDesc& 
         return PipelineErrorCode::Unknown;
     }
     if (!device) {
+        impl_->last_error = "Device is null";
         return PipelineErrorCode::InvalidDevice;
     }
     if (!device->is_valid()) {
+        impl_->last_error = "Device is invalid";
         return PipelineErrorCode::InvalidDevice;
     }
-    
+
     // Validate formats
     if (desc.color_format == TextureFormat::Unknown) {
-        std::fprintf(stderr, "Pipeline '%s': Invalid color format (Unknown)\n", desc.name ? desc.name : "unnamed");
+        impl_->last_error = "Invalid color format: Unknown";
         return PipelineErrorCode::IncompatibleFormat;
     }
     if (desc.depth_format == TextureFormat::Unknown) {
-        std::fprintf(stderr, "Pipeline '%s': Invalid depth format (Unknown)\n", desc.name ? desc.name : "unnamed");
+        impl_->last_error = "Invalid depth format: Unknown";
         return PipelineErrorCode::IncompatibleFormat;
     }
-    
-    return impl_->initialize(device, desc) ? PipelineErrorCode::Success : PipelineErrorCode::PipelineCreationFailed;
+
+    if (!impl_->initialize(device, desc)) {
+        return PipelineErrorCode::PipelineCreationFailed;
+    }
+
+    impl_->last_error.clear();
+    return PipelineErrorCode::Success;
 }
 
 bool PipelineState::is_valid() const {
@@ -50,6 +57,13 @@ const char* PipelineState::get_name() const {
 
 Device* PipelineState::get_device() const {
     return impl_ ? impl_->device : nullptr;
+}
+
+const char* PipelineState::get_last_error() const {
+    if (!impl_) {
+        return "Pipeline implementation is null";
+    }
+    return impl_->last_error.c_str();
 }
 
 } // namespace poko::render

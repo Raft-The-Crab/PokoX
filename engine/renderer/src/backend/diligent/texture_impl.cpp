@@ -24,13 +24,13 @@ Texture::Impl::~Impl() {
 
 bool Texture::Impl::initialize(Device* device, const TextureDesc& desc) {
     if (!device || !device->is_valid()) {
-        std::fprintf(stderr, "Invalid device\n");
+        last_error = "Device is invalid";
         return false;
     }
 
     auto device_impl = get_device_impl(device);
     if (!device_impl || !device_impl->device) {
-        std::fprintf(stderr, "Invalid device implementation\n");
+        last_error = "Failed to get device implementation";
         return false;
     }
 
@@ -39,31 +39,30 @@ bool Texture::Impl::initialize(Device* device, const TextureDesc& desc) {
 
     // Validate inputs
     if (!desc.name) {
-        std::fprintf(stderr, "Texture must have a name\n");
+        last_error = "Texture must have a name";
         return false;
     }
     if (desc.width == 0 || desc.height == 0) {
-        std::fprintf(stderr, "Texture '%s': Invalid dimensions (%u x %u)\n", desc.name, desc.width, desc.height);
+        last_error = "Invalid dimensions: width and height must be > 0";
         return false;
     }
     if (desc.type != TextureType::Texture2D) {
-        std::fprintf(stderr, "Texture '%s': Invalid type: %d\n", desc.name, static_cast<int>(desc.type));
+        last_error = "Invalid type: only Texture2D is supported";
         return false;
     }
     // Validate texture size limits (typical OpenGL 4.4 limits)
     if (desc.width > 16384 || desc.height > 16384) {
-        std::fprintf(stderr, "Texture '%s': Dimensions exceed maximum (16384 x 16384)\n", desc.name);
+        last_error = "Dimensions exceed maximum (16384 x 16384)";
         return false;
     }
     if (desc.data_size > 0 && !desc.data) {
-        std::fprintf(stderr, "Texture '%s': Null data pointer with non-zero size\n", desc.name);
+        last_error = "Null data pointer with non-zero size";
         return false;
     }
     // Validate data size matches dimensions for RGBA8
     uint32_t expected_size = desc.width * desc.height * 4;  // RGBA8 = 4 bytes per pixel
     if (desc.data && desc.data_size != expected_size) {
-        std::fprintf(stderr, "Data size (%u) does not match expected size for dimensions (%u)\n", 
-            desc.data_size, expected_size);
+        last_error = "Data size does not match expected size for dimensions";
         return false;
     }
 
@@ -134,7 +133,7 @@ bool Texture::Impl::initialize(Device* device, const TextureDesc& desc) {
         sub_res.pData = data.data();
         sub_res.Stride = desc.width * 4;  // RGBA8 = 4 bytes per pixel
         sub_res.DepthStride = 0;
-        
+
         tex_data.pSubResources = &sub_res;
         tex_data.NumSubresources = 1;
     }
@@ -142,14 +141,15 @@ bool Texture::Impl::initialize(Device* device, const TextureDesc& desc) {
     device_impl->device->CreateTexture(tex_desc, &tex_data, &texture);
 
     if (!texture) {
-        std::fprintf(stderr, "Failed to create texture\n");
+        last_error = "Failed to create texture";
         return false;
     }
 
     // Create shader resource view - deferred to M6 material creation
     // SRV is created on-demand when material binds the texture
     srv = nullptr;
-    
+
+    last_error.clear();
     return true;
 }
 

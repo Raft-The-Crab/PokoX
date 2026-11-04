@@ -9,6 +9,37 @@
  * M3 Scope: Supports vertex buffer creation with extended vertex formats
  * (Float, Float2, Float3, Float4, Int, Int2, Int3, Int4, UInt, UInt2, UInt3, UInt4)
  * and multiple vertex attributes (Position, Normal, TexCoord, Color).
+ *
+ * M9 Scope: Adds input slot support for instanced rendering. Each vertex attribute
+ * can specify an input slot (0 for vertex data, 1+ for instance data).
+ *
+ * Usage example:
+ * @code
+ * const float vertices[] = {
+ *     -0.5f, -0.5f, 0.0f,  // Position
+ *      0.5f, -0.5f, 0.0f,
+ *      0.0f,  0.5f, 0.0f
+ * };
+ *
+ * VertexBuffer buffer;
+ * BufferDesc desc;
+ * desc.data = vertices;
+ * desc.size = sizeof(vertices);
+ * desc.stride = 3 * sizeof(float);
+ * desc.name = "TriangleVertexBuffer";
+ * buffer.initialize(device, desc);
+ *
+ * // Update buffer dynamically
+ * buffer.update(new_vertices, new_size, 0);
+ *
+ * // Bind for drawing
+ * context.set_vertex_buffer(&buffer);
+ *
+ * // For instanced rendering (M9):
+ * // VertexAttribute attr;
+ * // attr.input_slot = 1;  // Instance data slot
+ * // attr.instance_data_step_rate = 1;  // Per-instance data
+ * @endcode
  */
 
 #ifndef POKO_RENDER_VERTEX_BUFFER_H
@@ -56,6 +87,8 @@ struct VertexAttribute {
     VertexSemantic semantic = VertexSemantic::Unknown;
     VertexFormat format = VertexFormat::Unknown;
     uint32_t offset = 0;  // Byte offset from vertex start
+    uint32_t input_slot = 0;  // M9: Input slot (0 for vertex data, 1+ for instance data)
+    uint32_t instance_data_step_rate = 0;  // M9: 0 = per-vertex, 1+ = per-N-instances
 };
 
 /**
@@ -118,6 +151,17 @@ public:
      * @param device The graphics device. Must remain valid for buffer lifetime.
      * @param desc Buffer description.
      * @return BufferErrorCode::Success on success, error code on failure.
+     *
+     * Error conditions (call get_last_error() for details):
+     * - Device is null or invalid
+     * - Buffer name is null
+     * - Size is 0
+     * - Null data pointer with non-zero size
+     * - Stride is 0
+     * - Stride exceeds buffer size
+     * - Size is not a multiple of stride
+     * - Size exceeds maximum (256 MB)
+     * - Buffer creation failed
      */
     BufferErrorCode initialize(Device* device, const BufferDesc& desc);
 
@@ -145,6 +189,11 @@ public:
      * @brief Returns the buffer name.
      */
     const char* get_name() const;
+
+    /**
+     * @brief Returns the last error message from buffer operations.
+     */
+    const char* get_last_error() const;
 
     /**
      * @brief Updates the buffer contents dynamically.

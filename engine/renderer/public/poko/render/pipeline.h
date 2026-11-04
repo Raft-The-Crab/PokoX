@@ -8,6 +8,28 @@
  *
  * M2/M3 Scope: Supports GLSL shaders on the OpenGL backend only. Other shader
  * languages and backends are deferred to future milestones.
+ *
+ * The PipelineState encapsulates the complete graphics pipeline configuration including
+ * shaders, vertex input layout, rasterizer state, blend state, and render target formats.
+ *
+ * Usage example:
+ * @code
+ * PipelineState pipeline;
+ * PipelineDesc desc;
+ * desc.name = "TrianglePipeline";
+ * desc.vertex_shader.source = vertexShaderGLSL;
+ * desc.vertex_shader.language = ShaderLanguage::GLSL;
+ * desc.pixel_shader.source = pixelShaderGLSL;
+ * desc.pixel_shader.language = ShaderLanguage::GLSL;
+ * desc.color_format = TextureFormat::RGBA8_UNORM;
+ * desc.depth_format = TextureFormat::D32_FLOAT;
+ * desc.topology = PrimitiveTopology::TriangleList;
+ * desc.vertex_layout = vertexLayout;
+ * pipeline.initialize(device, desc);
+ *
+ * // Bind pipeline for drawing
+ * context.set_pipeline_state(&pipeline);
+ * @endcode
  */
 
 #ifndef POKO_RENDER_PIPELINE_H
@@ -304,6 +326,17 @@ public:
      * @param device The graphics device. Must remain valid for pipeline lifetime.
      * @param desc Pipeline description.
      * @return PipelineErrorCode::Success on success, error code on failure.
+     *
+     * Error conditions (call get_last_error() for details):
+     * - Device is null or invalid
+     * - Pipeline name is null
+     * - Invalid shader type
+     * - Empty shader source
+     * - Null entry point
+     * - Shader compilation failed
+     * - Resource signature creation failed
+     * - Pipeline state creation failed
+     * - SRB creation failed
      */
     PipelineErrorCode initialize(Device* device, const PipelineDesc& desc);
 
@@ -321,6 +354,11 @@ public:
      * @brief Returns the device that created this pipeline.
      */
     Device* get_device() const;
+
+    /**
+     * @brief Returns the last error message from pipeline operations.
+     */
+    const char* get_last_error() const;
 
 private:
     struct Impl;

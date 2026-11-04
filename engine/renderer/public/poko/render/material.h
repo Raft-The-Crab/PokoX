@@ -9,6 +9,28 @@
  * M6/M7 Scope: Associates textures and constant buffers with shader resource
  * slots for binding through SRB. Supports multiple textures and constant buffers
  * per material with device compatibility validation.
+ *
+ * Usage example:
+ * @code
+ * // Create material with texture binding
+ * Texture texture;
+ * // ... initialize texture ...
+ *
+ * Material material;
+ * MaterialDesc desc;
+ * desc.pipeline = &pipeline;
+ * 
+ * TextureBinding tex_binding;
+ * tex_binding.texture = &texture;
+ * tex_binding.shader_variable = "g_Texture";
+ * desc.texture_count = 1;
+ * desc.texture_bindings = &tex_binding;
+ * 
+ * material.initialize(device, desc);
+ *
+ * // Bind material for drawing
+ * context.set_material(&material);
+ * @endcode
  */
 
 #ifndef POKO_RENDER_MATERIAL_H
@@ -89,6 +111,24 @@ public:
      * @param device The graphics device. Must remain valid for material lifetime.
      * @param desc Material description.
      * @return MaterialErrorCode::Success on success, error code on failure.
+     *
+     * Error conditions (call get_last_error() for details):
+     * - Device is null or invalid
+     * - Material name is null
+     * - Invalid pipeline
+     * - No textures or constant buffers
+     * - Texture count exceeds maximum (32)
+     * - Constant buffer count exceeds maximum (16)
+     * - Invalid texture bindings array
+     * - Invalid constant buffer bindings array
+     * - Invalid texture at binding index
+     * - Missing shader variable name
+     * - Array index exceeds maximum (255)
+     * - Texture or constant buffer created from different device
+     * - Invalid pipeline implementation
+     * - Pipeline created from different device
+     * - SRB creation failed
+     * - Texture SRV creation failed
      */
     MaterialErrorCode initialize(Device* device, const MaterialDesc& desc);
 
@@ -106,6 +146,11 @@ public:
      * @brief Returns the material name.
      */
     const char* get_name() const;
+
+    /**
+     * @brief Returns the last error message from material operations.
+     */
+    const char* get_last_error() const;
 
 private:
     struct Impl;

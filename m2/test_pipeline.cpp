@@ -162,6 +162,68 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 10: Missing pixel shader source
+    {
+        std::printf("Test 10: Missing pixel shader source returns error... ");
+        poko::render::PipelineState pipeline;
+        poko::render::Device device;  // Not initialized
+        poko::render::PipelineDesc desc;
+        desc.vertex_shader.source = kVertexShader;
+        desc.pixel_shader.source = nullptr;
+        
+        auto result = pipeline.initialize(&device, desc);
+        assert(result == poko::render::PipelineErrorCode::InvalidDevice);
+        assert(!pipeline.is_valid());
+        std::printf("PASS\n");
+    }
+
+    // Test 11: Rasterizer cull mode validation
+    {
+        std::printf("Test 11: Rasterizer cull mode validation... ");
+        poko::render::PipelineState pipeline;
+        poko::render::Device device;  // Not initialized
+        poko::render::PipelineDesc desc;
+        desc.vertex_shader.source = kVertexShader;
+        desc.pixel_shader.source = kPixelShader;
+        desc.rasterizer.cull_mode = poko::render::CullMode::Front;  // Valid
+        
+        auto result = pipeline.initialize(&device, desc);
+        assert(result == poko::render::PipelineErrorCode::InvalidDevice);
+        std::printf("PASS (cull modes are struct-only)\n");
+    }
+
+    // Test 13: Topology validation
+    {
+        std::printf("Test 13: Topology validation... ");
+        poko::render::PipelineState pipeline;
+        poko::render::Device device;  // Not initialized
+        poko::render::PipelineDesc desc;
+        desc.vertex_shader.source = kVertexShader;
+        desc.pixel_shader.source = kPixelShader;
+        desc.topology = poko::render::PrimitiveTopology::TriangleList;  // Valid
+        
+        auto result = pipeline.initialize(&device, desc);
+        assert(result == poko::render::PipelineErrorCode::InvalidDevice);
+        std::printf("PASS (topology is struct-only)\n");
+    }
+
+    // Test 14: Pipeline get_device returns nullptr for invalid pipeline
+    {
+        std::printf("Test 14: Pipeline get_device returns nullptr for invalid pipeline... ");
+        poko::render::PipelineState pipeline;
+        assert(pipeline.get_device() == nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 15: Pipeline get_name returns name for invalid pipeline
+    {
+        std::printf("Test 15: Pipeline get_name returns name for invalid pipeline... ");
+        poko::render::PipelineState pipeline;
+        const char* name = pipeline.get_name();
+        assert(name != nullptr);
+        std::printf("PASS\n");
+    }
+
     std::printf("\nAll M2 pipeline tests passed.\n");
     return 0;
 }

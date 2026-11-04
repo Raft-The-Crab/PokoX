@@ -20,13 +20,13 @@ VertexBuffer::Impl::~Impl() {
 
 bool VertexBuffer::Impl::initialize(Device* device, const BufferDesc& desc) {
     if (!device || !device->is_valid()) {
-        std::fprintf(stderr, "Invalid device\n");
+        last_error = "Device is invalid";
         return false;
     }
 
     auto device_impl = get_device_impl(device);
     if (!device_impl || !device_impl->device) {
-        std::fprintf(stderr, "Invalid device implementation\n");
+        last_error = "Failed to get device implementation";
         return false;
     }
 
@@ -35,32 +35,32 @@ bool VertexBuffer::Impl::initialize(Device* device, const BufferDesc& desc) {
 
     // Validate inputs
     if (!desc.name) {
-        std::fprintf(stderr, "VertexBuffer must have a name\n");
+        last_error = "VertexBuffer must have a name";
         return false;
     }
     if (desc.size == 0) {
-        std::fprintf(stderr, "VertexBuffer '%s': Invalid size: 0\n", desc.name);
+        last_error = "Invalid size: 0";
         return false;
     }
     if (!desc.data && desc.size > 0) {
-        std::fprintf(stderr, "VertexBuffer '%s': Null data pointer with non-zero size\n", desc.name);
+        last_error = "Null data pointer with non-zero size";
         return false;
     }
     if (desc.stride == 0) {
-        std::fprintf(stderr, "VertexBuffer '%s': Invalid stride: 0\n", desc.name);
+        last_error = "Invalid stride: 0";
         return false;
     }
     if (desc.stride > desc.size) {
-        std::fprintf(stderr, "VertexBuffer '%s': Stride (%u) cannot exceed buffer size (%u)\n", desc.name, desc.stride, desc.size);
+        last_error = "Stride cannot exceed buffer size";
         return false;
     }
     if (desc.size % desc.stride != 0) {
-        std::fprintf(stderr, "VertexBuffer '%s': Size (%u) is not a multiple of stride (%u)\n", desc.name, desc.size, desc.stride);
+        last_error = "Size is not a multiple of stride";
         return false;
     }
     // Validate buffer size limit (typical max)
     if (desc.size > 256 * 1024 * 1024) {  // 256 MB
-        std::fprintf(stderr, "VertexBuffer '%s': Size (%u MB) exceeds maximum (256 MB)\n", desc.name, desc.size / (1024 * 1024));
+        last_error = "Size exceeds maximum (256 MB)";
         return false;
     }
 
@@ -84,43 +84,43 @@ bool VertexBuffer::Impl::initialize(Device* device, const BufferDesc& desc) {
     device_impl->device->CreateBuffer(bd, &buffer_data, &buffer);
 
     if (!buffer) {
-        std::fprintf(stderr, "Failed to create vertex buffer\n");
+        last_error = "Failed to create vertex buffer";
         return false;
     }
 
+    last_error.clear();
     return true;
 }
 
 bool VertexBuffer::Impl::update(const void* data_ptr, uint32_t size, uint32_t offset) {
     if (!buffer) {
-        std::fprintf(stderr, "VertexBuffer '%s': Cannot update uninitialized buffer\n", desc.name);
+        last_error = "Cannot update uninitialized buffer";
         return false;
     }
 
     auto device_impl = get_device_impl(device);
     if (!device_impl || !device_impl->context) {
-        std::fprintf(stderr, "Invalid device implementation\n");
+        last_error = "Failed to get device implementation";
         return false;
     }
 
     // Validate inputs
     if (!data_ptr) {
-        std::fprintf(stderr, "VertexBuffer '%s': Null data pointer\n", desc.name);
+        last_error = "Null data pointer";
         return false;
     }
     if (size == 0) {
-        std::fprintf(stderr, "VertexBuffer '%s': Invalid update size: 0\n", desc.name);
+        last_error = "Invalid update size: 0";
         return false;
     }
     if (offset + size > desc.size) {
-        std::fprintf(stderr, "VertexBuffer '%s': Update range [offset=%u, size=%u] exceeds buffer size (%u)\n",
-            desc.name, offset, size, desc.size);
+        last_error = "Update range exceeds buffer size";
         return false;
     }
 
     // Update buffer using context's UpdateBuffer
     device_impl->context->UpdateBuffer(buffer, offset, size, data_ptr, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
+    last_error.clear();
     return true;
 }
 

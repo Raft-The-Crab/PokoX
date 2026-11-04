@@ -8,6 +8,25 @@
  *
  * M5 Scope: Supports 2D textures with multiple formats (RGBA8, RG8, R8, RGBA16,
  * RGBA32, depth formats), dimension validation, and texture SRV creation.
+ *
+ * Usage example:
+ * @code
+ * // Create a texture from pixel data
+ * uint8_t pixel_data[256 * 256 * 4];  // RGBA8
+ * 
+ * Texture texture;
+ * TextureDesc desc;
+ * desc.width = 256;
+ * desc.height = 256;
+ * desc.format = TextureFormat::RGBA8_UNORM;
+ * desc.type = TextureType::Texture2D;
+ * desc.data = pixel_data;
+ * desc.data_size = sizeof(pixel_data);
+ * desc.name = "MyTexture";
+ * texture.initialize(device, desc);
+ *
+ * // Use in material binding (M6)
+ * @endcode
  */
 
 #ifndef POKO_RENDER_TEXTURE_H
@@ -93,6 +112,16 @@ public:
      * @param device The graphics device. Must remain valid for texture lifetime.
      * @param desc Texture description.
      * @return TextureErrorCode::Success on success, error code on failure.
+     *
+     * Error conditions (call get_last_error() for details):
+     * - Device is null or invalid
+     * - Texture name is null
+     * - Invalid dimensions (width or height is 0)
+     * - Invalid type (only Texture2D supported)
+     * - Dimensions exceed maximum (16384 x 16384)
+     * - Null data pointer with non-zero size
+     * - Data size does not match expected size for dimensions
+     * - Texture creation failed
      */
     TextureErrorCode initialize(Device* device, const TextureDesc& desc);
 
@@ -116,6 +145,11 @@ public:
      */
     const char* get_name() const;
 
+    /**
+     * @brief Returns the last error message from texture operations.
+     */
+    const char* get_last_error() const;
+
 private:
     struct Impl;
     Impl* impl_;
@@ -123,6 +157,10 @@ private:
     // Allow Context to access private impl_ for backend operations
     friend class Context;
     friend class Material;
+    friend class Framebuffer;
+    
+    // Allow backend helper functions to access private impl_
+    friend Texture::Impl* get_texture_impl(Texture*);
 };
 
 } // namespace poko::render

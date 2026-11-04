@@ -24,6 +24,7 @@ struct PipelineState::Impl {
     std::string pixel_shader_source;
     PipelineDesc desc;
     Device* device = nullptr;  // Non-owning reference for validation
+    std::string last_error;  // Last error message
 
     Impl() = default;
     ~Impl();

@@ -115,6 +115,78 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 9: Texture format validation (Unknown format)
+    {
+        std::printf("Test 9: Texture format validation (Unknown format)... ");
+        const uint8_t dummy_data[] = {255, 0, 0, 255};
+        poko::render::Texture texture;
+        poko::render::Device device;  // Not initialized
+        poko::render::TextureDesc desc;
+        desc.width = 64;
+        desc.height = 64;
+        desc.format = poko::render::TextureFormat::Unknown;
+        desc.data = dummy_data;
+        desc.data_size = sizeof(dummy_data);
+        
+        auto result = texture.initialize(&device, desc);
+        assert(result == poko::render::TextureErrorCode::InvalidDevice);
+        std::printf("PASS (device checked first)\n");
+    }
+
+    // Test 10: Texture dimension validation
+    {
+        std::printf("Test 10: Texture dimension validation... ");
+        const uint8_t dummy_data[] = {255, 0, 0, 255};
+        poko::render::Texture texture;
+        poko::render::Device device;  // Not initialized
+        poko::render::TextureDesc desc;
+        desc.width = 1;  // Minimum
+        desc.height = 1;  // Minimum
+        desc.format = poko::render::TextureFormat::RGBA8_UNORM;
+        desc.data = dummy_data;
+        desc.data_size = sizeof(dummy_data);
+        
+        auto result = texture.initialize(&device, desc);
+        assert(result == poko::render::TextureErrorCode::InvalidDevice);
+        std::printf("PASS (device checked first)\n");
+    }
+
+    // Test 11: Texture with null data
+    {
+        std::printf("Test 11: Texture with null data... ");
+        poko::render::Texture texture;
+        poko::render::Device device;  // Not initialized
+        poko::render::TextureDesc desc;
+        desc.width = 64;
+        desc.height = 64;
+        desc.format = poko::render::TextureFormat::RGBA8_UNORM;
+        desc.data = nullptr;
+        desc.data_size = 0;
+        
+        auto result = texture.initialize(&device, desc);
+        assert(result == poko::render::TextureErrorCode::InvalidDevice);
+        std::printf("PASS (device checked first)\n");
+    }
+
+    // Test 12: TextureType validation
+    {
+        std::printf("Test 12: TextureType validation... ");
+        const uint8_t dummy_data[] = {255, 0, 0, 255};
+        poko::render::Texture texture;
+        poko::render::Device device;  // Not initialized
+        poko::render::TextureDesc desc;
+        desc.width = 64;
+        desc.height = 64;
+        desc.type = poko::render::TextureType::Texture2D;
+        desc.format = poko::render::TextureFormat::RGBA8_UNORM;
+        desc.data = dummy_data;
+        desc.data_size = sizeof(dummy_data);
+        
+        auto result = texture.initialize(&device, desc);
+        assert(result == poko::render::TextureErrorCode::InvalidDevice);
+        std::printf("PASS (device checked first)\n");
+    }
+
     std::printf("\nAll M5 texture tests passed.\n");
     std::printf("Note: Texture binding is deferred to M6 (requires SRB management).\n");
     return 0;

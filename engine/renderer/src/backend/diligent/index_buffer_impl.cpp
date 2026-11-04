@@ -20,13 +20,13 @@ IndexBuffer::Impl::~Impl() {
 
 bool IndexBuffer::Impl::initialize(Device* device, const IndexBufferDesc& desc) {
     if (!device || !device->is_valid()) {
-        std::fprintf(stderr, "Invalid device\n");
+        last_error = "Device is invalid";
         return false;
     }
 
     auto device_impl = get_device_impl(device);
     if (!device_impl || !device_impl->device) {
-        std::fprintf(stderr, "Invalid device implementation\n");
+        last_error = "Failed to get device implementation";
         return false;
     }
 
@@ -35,35 +35,34 @@ bool IndexBuffer::Impl::initialize(Device* device, const IndexBufferDesc& desc) 
 
     // Validate inputs
     if (!desc.name) {
-        std::fprintf(stderr, "IndexBuffer must have a name\n");
+        last_error = "IndexBuffer must have a name";
         return false;
     }
     if (desc.size == 0) {
-        std::fprintf(stderr, "IndexBuffer '%s': Invalid size: 0\n", desc.name);
+        last_error = "Invalid size: 0";
         return false;
     }
     if (!desc.data && desc.size > 0) {
-        std::fprintf(stderr, "IndexBuffer '%s': Null data pointer with non-zero size\n", desc.name);
+        last_error = "Null data pointer with non-zero size";
         return false;
     }
     if (desc.format != IndexFormat::UInt16 && desc.format != IndexFormat::UInt32) {
-        std::fprintf(stderr, "IndexBuffer '%s': Invalid format: %d\n", desc.name, static_cast<int>(desc.format));
+        last_error = "Invalid format";
         return false;
     }
     if (desc.index_count == 0) {
-        std::fprintf(stderr, "IndexBuffer '%s': Invalid index count: 0\n", desc.name);
+        last_error = "Invalid index count: 0";
         return false;
     }
     // Validate size matches format
     uint32_t expected_size = (desc.format == IndexFormat::UInt16) ? desc.index_count * 2 : desc.index_count * 4;
     if (desc.size != expected_size) {
-        std::fprintf(stderr, "IndexBuffer '%s': Size (%u) does not match expected size for format and index count (%u)\n",
-            desc.name, desc.size, expected_size);
+        last_error = "Size does not match expected size for format and index count";
         return false;
     }
     // Validate buffer size limit (typical max)
     if (desc.size > 256 * 1024 * 1024) {  // 256 MB
-        std::fprintf(stderr, "IndexBuffer '%s': Size (%u MB) exceeds maximum (256 MB)\n", desc.name, desc.size / (1024 * 1024));
+        last_error = "Size exceeds maximum (256 MB)";
         return false;
     }
 
@@ -87,43 +86,43 @@ bool IndexBuffer::Impl::initialize(Device* device, const IndexBufferDesc& desc) 
     device_impl->device->CreateBuffer(bd, &buffer_data, &buffer);
 
     if (!buffer) {
-        std::fprintf(stderr, "Failed to create index buffer\n");
+        last_error = "Failed to create index buffer";
         return false;
     }
 
+    last_error.clear();
     return true;
 }
 
 bool IndexBuffer::Impl::update(const void* data_ptr, uint32_t size, uint32_t offset) {
     if (!buffer) {
-        std::fprintf(stderr, "IndexBuffer '%s': Cannot update uninitialized buffer\n", desc.name);
+        last_error = "Cannot update uninitialized buffer";
         return false;
     }
 
     auto device_impl = get_device_impl(device);
     if (!device_impl || !device_impl->context) {
-        std::fprintf(stderr, "Invalid device implementation\n");
+        last_error = "Failed to get device implementation";
         return false;
     }
 
     // Validate inputs
     if (!data_ptr) {
-        std::fprintf(stderr, "IndexBuffer '%s': Null data pointer\n", desc.name);
+        last_error = "Null data pointer";
         return false;
     }
     if (size == 0) {
-        std::fprintf(stderr, "IndexBuffer '%s': Invalid update size: 0\n", desc.name);
+        last_error = "Invalid update size: 0";
         return false;
     }
     if (offset + size > desc.size) {
-        std::fprintf(stderr, "IndexBuffer '%s': Update range [offset=%u, size=%u] exceeds buffer size (%u)\n",
-            desc.name, offset, size, desc.size);
+        last_error = "Update range exceeds buffer size";
         return false;
     }
 
     // Update buffer using context's UpdateBuffer
     device_impl->context->UpdateBuffer(buffer, offset, size, data_ptr, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
+    last_error.clear();
     return true;
 }
 

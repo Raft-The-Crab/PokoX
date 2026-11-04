@@ -56,6 +56,8 @@ option(POKO_BUILD_M4        "Build the M4 index buffer and indexed rendering dem
 option(POKO_BUILD_M5        "Build the M5 texture creation demo" OFF)
 option(POKO_BUILD_M6        "Build the M6 material and SRB demo" OFF)
 option(POKO_BUILD_M7        "Build the M7 constant buffer demo" OFF)
+option(POKO_BUILD_M8        "Build the M8 render passes and framebuffers demo" ON)
+option(POKO_BUILD_M9        "Build the M9 advanced drawing and performance benchmarks demo" ON)
 option(POKO_WITH_DILIGENT   "Build the Diligent Core graphics backend"        ON)
 
 include(CTest)  # defines BUILD_TESTING, registers CTest for `ctest`
@@ -155,6 +157,20 @@ endif()
 # -----------------------------------------------------------------------------
 if(POKO_BUILD_M7)
     add_subdirectory(m7)
+endif()
+
+# -----------------------------------------------------------------------------
+# M8 render passes and framebuffers
+# -----------------------------------------------------------------------------
+if(POKO_BUILD_M8)
+    add_subdirectory(m8)
+endif()
+
+# -----------------------------------------------------------------------------
+# M9 advanced drawing and performance benchmarks
+# -----------------------------------------------------------------------------
+if(POKO_BUILD_M9)
+    add_subdirectory(m9)
 endif()
 
 # -----------------------------------------------------------------------------

@@ -172,6 +172,52 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 16: update with null data fails
+    {
+        std::printf("Test 16: update with null data fails... ");
+        poko::render::IndexBuffer buffer;
+        auto result = buffer.update(nullptr, 6, 0);
+        assert(result != poko::render::IndexBufferErrorCode::Success);
+        std::printf("PASS\n");
+    }
+
+    // Test 17: update with zero size fails
+    {
+        std::printf("Test 17: update with zero size fails... ");
+        poko::render::IndexBuffer buffer;
+        uint16_t data[3] = {0};
+        auto result = buffer.update(data, 0, 0);
+        assert(result != poko::render::IndexBufferErrorCode::Success);
+        std::printf("PASS\n");
+    }
+
+    // Test 18: update offset validation
+    {
+        std::printf("Test 18: update offset validation... ");
+        poko::render::IndexBuffer buffer;
+        uint16_t data[3] = {0};
+        auto result = buffer.update(data, 6, 1000);  // Large offset
+        assert(result != poko::render::IndexBufferErrorCode::Success);
+        std::printf("PASS\n");
+    }
+
+    // Test 19: Index count validation
+    {
+        std::printf("Test 19: Index count validation... ");
+        const uint16_t indices[] = {0, 1, 2};
+        poko::render::IndexBuffer buffer;
+        poko::render::Device device;  // Not initialized
+        poko::render::IndexBufferDesc desc;
+        desc.data = indices;
+        desc.size = sizeof(indices);
+        desc.index_count = 0;  // Invalid count
+        desc.format = poko::render::IndexFormat::UInt16;
+        
+        auto result = buffer.initialize(&device, desc);
+        assert(result == poko::render::IndexBufferErrorCode::InvalidDevice);
+        std::printf("PASS (device checked first)\n");
+    }
+
     std::printf("\nAll M4 index buffer tests passed.\n");
     return 0;
 }

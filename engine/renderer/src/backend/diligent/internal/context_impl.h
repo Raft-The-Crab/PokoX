@@ -10,6 +10,7 @@
 #define POKO_RENDER_BACKEND_DILIGENT_CONTEXT_IMPL_H
 
 #include "poko/render/context.h"
+#include "poko/render/framebuffer.h"
 
 #include "DeviceContext.h"
 #include "RenderDevice.h"
@@ -31,6 +32,7 @@ struct Context::Impl {
     Diligent::VALUE_TYPE bound_index_format = Diligent::VT_UINT16;  // M4: Track bound index format
     poko::render::Device* poko_device = nullptr;  // Non-owning reference for validation
     BackendType backend_type = BackendType::Unknown;  // Backend type for this context
+    std::string last_error;  // Last error message
 
     Impl();
     ~Impl();
@@ -49,6 +51,8 @@ struct Context::Impl {
 inline Context::Impl* get_context_impl(Context* context) {
     return context ? context->impl_ : nullptr;
 }
+
+inline Framebuffer::Impl* get_framebuffer_impl(Framebuffer* framebuffer);
 
 } // namespace poko::render
 

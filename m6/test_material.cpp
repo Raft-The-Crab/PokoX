@@ -140,6 +140,67 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 9: Texture binding with null texture
+    {
+        std::printf("Test 9: Texture binding with null texture... ");
+        poko::render::Material material;
+        poko::render::Device device;
+        poko::render::PipelineState pipeline;
+        poko::render::TextureBinding tex_binding;
+        tex_binding.texture = nullptr;
+        tex_binding.shader_variable = "g_Texture";
+        poko::render::MaterialDesc desc;
+        desc.texture_count = 1;
+        desc.texture_bindings = &tex_binding;
+        desc.pipeline = &pipeline;
+        
+        auto result = material.initialize(&device, desc);
+        assert(result == poko::render::MaterialErrorCode::InvalidDevice);
+        std::printf("PASS (device checked first)\n");
+    }
+
+    // Test 10: Texture binding with null shader variable
+    {
+        std::printf("Test 10: Texture binding with null shader variable... ");
+        const uint8_t dummy_data[] = {255, 0, 0, 255};
+        poko::render::Texture texture;
+        poko::render::TextureDesc tex_desc;
+        tex_desc.width = 64;
+        tex_desc.height = 64;
+        tex_desc.data = dummy_data;
+        tex_desc.data_size = sizeof(dummy_data);
+        
+        poko::render::Material material;
+        poko::render::Device device;
+        poko::render::PipelineState pipeline;
+        poko::render::TextureBinding tex_binding;
+        tex_binding.texture = &texture;
+        tex_binding.shader_variable = nullptr;
+        poko::render::MaterialDesc desc;
+        desc.texture_count = 1;
+        desc.texture_bindings = &tex_binding;
+        desc.pipeline = &pipeline;
+        
+        auto result = material.initialize(&device, desc);
+        assert(result == poko::render::MaterialErrorCode::InvalidDevice);
+        std::printf("PASS (device checked first)\n");
+    }
+
+    // Test 11: Material with null pipeline
+    {
+        std::printf("Test 11: Material with null pipeline... ");
+        poko::render::Material material;
+        poko::render::Device device;
+        poko::render::MaterialDesc desc;
+        desc.texture_count = 0;
+        desc.texture_bindings = nullptr;
+        desc.pipeline = nullptr;
+        
+        auto result = material.initialize(&device, desc);
+        assert(result == poko::render::MaterialErrorCode::InvalidDevice);
+        std::printf("PASS (device checked first)\n");
+    }
+
     std::printf("\nAll M6 material tests passed.\n");
     std::printf("Note: Full SRB implementation with flexible shader variable names.\n");
     return 0;
