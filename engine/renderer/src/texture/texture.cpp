@@ -48,4 +48,8 @@ TextureFormat Texture::get_format() const {
     return (impl_ && impl_->texture) ? impl_->desc.format : TextureFormat::Unknown;
 }
 
+const char* Texture::get_name() const {
+    return impl_ ? (impl_->desc.name ? impl_->desc.name : "") : "";
+}
+
 } // namespace poko::render

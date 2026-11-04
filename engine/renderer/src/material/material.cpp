@@ -54,4 +54,12 @@ bool Material::is_valid() const {
     return impl_ != nullptr && impl_->srb != nullptr;
 }
 
+Device* Material::get_device() const {
+    return impl_ ? impl_->device : nullptr;
+}
+
+const char* Material::get_name() const {
+    return impl_ ? (impl_->desc.name ? impl_->desc.name : "") : "";
+}
+
 } // namespace poko::render

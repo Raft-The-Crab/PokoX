@@ -111,6 +111,11 @@ public:
      */
     TextureFormat get_format() const;
 
+    /**
+     * @brief Returns the texture name.
+     */
+    const char* get_name() const;
+
 private:
     struct Impl;
     Impl* impl_;

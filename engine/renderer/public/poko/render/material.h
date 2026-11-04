@@ -97,6 +97,16 @@ public:
      */
     bool is_valid() const;
 
+    /**
+     * @brief Returns the device that created this material.
+     */
+    Device* get_device() const;
+
+    /**
+     * @brief Returns the material name.
+     */
+    const char* get_name() const;
+
 private:
     struct Impl;
     Impl* impl_;

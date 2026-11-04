@@ -9,6 +9,7 @@
 
 #include <cstdio>
 #include <cassert>
+#include <cstring>
 
 int main() {
     std::printf("M5 Texture API Tests\n");
@@ -102,6 +103,15 @@ int main() {
         std::printf("Test 7: get_format returns Unknown for invalid texture... ");
         poko::render::Texture texture;
         assert(texture.get_format() == poko::render::TextureFormat::Unknown);
+        std::printf("PASS\n");
+    }
+
+    // Test 8: get_name returns name for texture
+    {
+        std::printf("Test 8: get_name returns name for texture... ");
+        poko::render::Texture texture;
+        const char* name = texture.get_name();
+        assert(name != nullptr);
         std::printf("PASS\n");
     }
 

@@ -45,6 +45,14 @@ uint32_t VertexBuffer::get_size() const {
     return impl_ ? impl_->desc.size : 0;
 }
 
+uint32_t VertexBuffer::get_stride() const {
+    return impl_ ? impl_->desc.stride : 0;
+}
+
+const char* VertexBuffer::get_name() const {
+    return impl_ ? (impl_->desc.name ? impl_->desc.name : "") : "";
+}
+
 BufferErrorCode VertexBuffer::update(const void* data, uint32_t size, uint32_t offset) {
     if (!impl_) {
         return BufferErrorCode::Unknown;

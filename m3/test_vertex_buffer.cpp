@@ -103,6 +103,23 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 9: get_name returns name for buffer
+    {
+        std::printf("Test 9: get_name returns name for buffer... ");
+        poko::render::VertexBuffer buffer;
+        const char* name = buffer.get_name();
+        assert(name != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 10: get_stride returns 0 for invalid buffer
+    {
+        std::printf("Test 10: get_stride returns 0 for invalid buffer... ");
+        poko::render::VertexBuffer buffer;
+        assert(buffer.get_stride() == 0);
+        std::printf("PASS\n");
+    }
+
     std::printf("\nAll M3 vertex buffer tests passed.\n");
     return 0;
 }

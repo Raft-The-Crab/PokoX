@@ -161,6 +161,11 @@ public:
     bool is_valid() const;
 
     /**
+     * @brief Returns the backend type for this context.
+     */
+    BackendType backend_type() const;
+
+    /**
      * @brief Initializes the context from a device and swap chain.
      *
      * @param device The graphics device.

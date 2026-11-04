@@ -9,6 +9,7 @@
 
 #include <cstdio>
 #include <cassert>
+#include <cstring>
 
 int main() {
     std::printf("M4 Index Buffer API Tests\n");
@@ -150,6 +151,24 @@ int main() {
         uint16_t data[3] = {0};
         auto result = buffer.update(data, 6, 0);
         assert(result != poko::render::IndexBufferErrorCode::Success);
+        std::printf("PASS\n");
+    }
+
+    // Test 7: get_name returns name for buffer
+    {
+        std::printf("Test 7: get_name returns name for buffer... ");
+        poko::render::IndexBuffer buffer;
+        const char* name = buffer.get_name();
+        assert(name != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 8: get_format returns UInt16 for invalid buffer
+    {
+        std::printf("Test 8: get_format returns default for invalid buffer... ");
+        poko::render::IndexBuffer buffer;
+        poko::render::IndexFormat fmt = buffer.get_format();
+        assert(fmt == poko::render::IndexFormat::UInt16);
         std::printf("PASS\n");
     }
 

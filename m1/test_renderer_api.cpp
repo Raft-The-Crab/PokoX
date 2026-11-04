@@ -85,6 +85,14 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 9: Context backend_type returns Unknown for invalid context
+    {
+        std::printf("Test 9: Context backend_type returns Unknown for invalid context... ");
+        poko::render::Context context;
+        assert(context.backend_type() == poko::render::BackendType::Unknown);
+        std::printf("PASS\n");
+    }
+
     std::printf("\nAll renderer API tests passed.\n");
     return 0;
 }

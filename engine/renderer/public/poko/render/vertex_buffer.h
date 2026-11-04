@@ -137,6 +137,16 @@ public:
     uint32_t get_size() const;
 
     /**
+     * @brief Returns the buffer stride in bytes.
+     */
+    uint32_t get_stride() const;
+
+    /**
+     * @brief Returns the buffer name.
+     */
+    const char* get_name() const;
+
+    /**
      * @brief Updates the buffer contents dynamically.
      *
      * @param data Pointer to new data.

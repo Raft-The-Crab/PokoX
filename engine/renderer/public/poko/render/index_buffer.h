@@ -97,6 +97,16 @@ public:
     uint32_t get_size() const;
 
     /**
+     * @brief Returns the index format.
+     */
+    IndexFormat get_format() const;
+
+    /**
+     * @brief Returns the buffer name.
+     */
+    const char* get_name() const;
+
+    /**
      * @brief Updates the buffer contents dynamically.
      *
      * @param data Pointer to new data.

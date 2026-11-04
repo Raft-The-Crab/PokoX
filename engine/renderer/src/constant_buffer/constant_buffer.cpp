@@ -62,4 +62,8 @@ uint32_t ConstantBuffer::get_size() const {
     return impl_ ? impl_->desc.size : 0;
 }
 
+const char* ConstantBuffer::get_name() const {
+    return impl_ ? (impl_->desc.name ? impl_->desc.name : "") : "";
+}
+
 } // namespace poko::render

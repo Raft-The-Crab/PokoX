@@ -11,6 +11,7 @@
 
 #include <cstdio>
 #include <cassert>
+#include <cstring>
 
 int main() {
     std::printf("M6 Material API Tests\n");
@@ -119,6 +120,23 @@ int main() {
         poko::render::Material material;
         bool result = context.set_material(&material);
         assert(!result);
+        std::printf("PASS\n");
+    }
+
+    // Test 7: get_name returns default name for material
+    {
+        std::printf("Test 7: get_name returns default name for material... ");
+        poko::render::Material material;
+        const char* name = material.get_name();
+        assert(name != nullptr);
+        std::printf("PASS\n");
+    }
+
+    // Test 8: get_device returns nullptr for invalid material
+    {
+        std::printf("Test 8: get_device returns nullptr for invalid material... ");
+        poko::render::Material material;
+        assert(material.get_device() == nullptr);
         std::printf("PASS\n");
     }
 

@@ -331,6 +331,10 @@ bool Context::is_valid() const {
     return impl_ != nullptr && impl_->context != nullptr;
 }
 
+BackendType Context::backend_type() const {
+    return impl_ ? impl_->backend_type : BackendType::Unknown;
+}
+
 bool Context::initialize(Device* device, SwapChain* swap_chain) {
     return impl_ && impl_->initialize(device, swap_chain);
 }

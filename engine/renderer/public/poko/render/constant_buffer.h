@@ -103,6 +103,11 @@ public:
      */
     uint32_t get_size() const;
 
+    /**
+     * @brief Returns the buffer name.
+     */
+    const char* get_name() const;
+
 private:
     struct Impl;
     Impl* impl_;

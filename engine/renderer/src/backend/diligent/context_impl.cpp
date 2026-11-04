@@ -27,6 +27,7 @@ bool Context::Impl::initialize(Device* device, SwapChain* swap_chain) {
 
     this->context = device_impl->context;
     this->poko_device = device;
+    this->backend_type = device_impl->backend_type;
 
     auto swapchain_impl = get_swapchain_impl(swap_chain);
     if (swapchain_impl) {

@@ -48,6 +48,14 @@ uint32_t IndexBuffer::get_size() const {
     return impl_ ? impl_->desc.size : 0;
 }
 
+IndexFormat IndexBuffer::get_format() const {
+    return impl_ ? impl_->desc.format : IndexFormat::UInt16;
+}
+
+const char* IndexBuffer::get_name() const {
+    return impl_ ? (impl_->desc.name ? impl_->desc.name : "") : "";
+}
+
 IndexBufferErrorCode IndexBuffer::update(const void* data, uint32_t size, uint32_t offset) {
     if (!impl_) {
         return IndexBufferErrorCode::Unknown;

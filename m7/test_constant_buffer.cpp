@@ -144,6 +144,15 @@ int main() {
         std::printf("PASS\n");
     }
 
+    // Test 13: get_name returns name for buffer
+    {
+        std::printf("Test 13: get_name returns name for buffer... ");
+        poko::render::ConstantBuffer buffer;
+        const char* name = buffer.get_name();
+        assert(name != nullptr);
+        std::printf("PASS\n");
+    }
+
     std::printf("\nAll M7 constant buffer tests passed.\n");
     return 0;
 }
