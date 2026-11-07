@@ -362,7 +362,9 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
         }
 
         Diligent::PipelineResourceDesc resources[32];
+        Diligent::ImmutableSamplerDesc immutable_samplers[32];
         uint32_t res_count = 0;
+        uint32_t immut_count = 0;
 
         for (uint32_t i = 0; i < desc.resource_signature.resource_count && i < 32; ++i) {
             const auto& res = desc.resource_signature.resources[i];
@@ -420,6 +422,17 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
             resources[res_count].VarType = var_type;
             resources[res_count].ArraySize = res.array_size;
             resources[res_count].Flags = flags;
+
+            // With UseCombinedTextureSamplers enabled, every texture SRV needs a
+            // matching sampler (named "<tex>_sampler") or an immutable sampler
+            // assigned to the texture name. Supply a default linear/clamp
+            // immutable sampler so bound SRVs sample correctly without requiring
+            // callers to bind a separate sampler object.
+            if (res_type == Diligent::SHADER_RESOURCE_TYPE_TEXTURE_SRV && immut_count < 32) {
+                Diligent::SamplerDesc samp_desc;
+                immutable_samplers[immut_count++] =
+                    Diligent::ImmutableSamplerDesc(shader_type, res.name, samp_desc);
+            }
             ++res_count;
         }
 
@@ -434,6 +447,8 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
         signature_desc.Name = desc.resource_signature.name ? desc.resource_signature.name : "Poko Resource Signature";
         signature_desc.Resources = resources;
         signature_desc.NumResources = res_count;
+        signature_desc.ImmutableSamplers = immutable_samplers;
+        signature_desc.NumImmutableSamplers = immut_count;
         signature_desc.UseCombinedTextureSamplers = true;  // Required for OpenGL
 
         device_impl->device->CreatePipelineResourceSignature(signature_desc, &resource_signature);
