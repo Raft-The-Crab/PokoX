@@ -194,9 +194,7 @@ bool Context::set_render_target(SwapChain* swap_chain) {
         return false;
     }
 
-    Diligent::ITextureView* dsv = impl_->swap_chain
-                                     ? impl_->swap_chain->GetDepthBufferDSV()
-                                     : nullptr;
+    Diligent::ITextureView* dsv = swap_chain_impl->swap_chain->GetDepthBufferDSV();
     impl_->context->SetRenderTargets(1, &rtv, dsv,
         Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
     impl_->last_error.clear();

@@ -102,7 +102,10 @@ void CharacterController::move_with_acceleration(const math::Vec3& direction, fl
     // Update velocity only; position integration happens once per frame in
     // on_update(). Applying the displacement here as well would move the
     // character twice per frame.
-    math::Vec3 target_velocity = direction * move_speed_;
+    // Only steer the horizontal velocity; vertical velocity is owned by
+    // gravity/jump and must not be damped toward zero while airborne.
+    math::Vec3 target_velocity(direction.x * move_speed_, velocity_.y,
+                               direction.z * move_speed_);
 
     math::Vec3 velocity_diff = target_velocity - velocity_;
     float velocity_diff_length = velocity_diff.length();

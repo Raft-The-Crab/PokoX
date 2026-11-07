@@ -122,11 +122,31 @@ bool load_tga(const char* filepath, TextureDesc& out_desc, std::string& error) {
         return false;
     }
 
-    // Read width/height as little-endian 16-bit
-    int16_t width = header[12] | (header[13] << 8);
-    int16_t height = header[14] | (header[15] << 8);
-    uint8_t bits_per_pixel = header[16];
+    // Colormapped images are not supported
+    if (header[1] != 0) {
+        std::fclose(f);
+        error = "Colormapped TGA not supported";
+        return false;
+    }
 
+    // Skip the image ID field that follows the 18-byte header
+    if (header[0] != 0 && std::fseek(f, header[0], SEEK_CUR) != 0) {
+        std::fclose(f);
+        error = "Failed to skip TGA image ID field";
+        return false;
+    }
+
+    // Read width/height as little-endian 16-bit
+    uint32_t width = static_cast<uint32_t>(header[12] | (header[13] << 8));
+    uint32_t height = static_cast<uint32_t>(header[14] | (header[15] << 8));
+    uint8_t bits_per_pixel = header[16];
+    uint8_t descriptor = header[17];
+
+    if (width == 0 || height == 0 || width > 16384 || height > 16384) {
+        std::fclose(f);
+        error = "Invalid TGA dimensions";
+        return false;
+    }
     if (bits_per_pixel != 24 && bits_per_pixel != 32) {
         std::fclose(f);
         error = "Only 24/32-bit TGA supported";
@@ -134,33 +154,43 @@ bool load_tga(const char* filepath, TextureDesc& out_desc, std::string& error) {
     }
 
     int channels = bits_per_pixel / 8;
-    int total_pixels = width * height;
-    int data_size = total_pixels * channels;
+    size_t total_pixels = static_cast<size_t>(width) * height;
+    size_t data_size = total_pixels * channels;
 
     std::vector<uint8_t> data(data_size);
-    if (std::fread(data.data(), 1, data_size, f) != static_cast<size_t>(data_size)) {
+    if (std::fread(data.data(), 1, data_size, f) != data_size) {
         std::fclose(f);
         error = "Failed to read TGA data";
         return false;
     }
     std::fclose(f);
 
+    // Image descriptor bit 5: 0 = bottom-left origin (rows stored
+    // bottom-up), 1 = top-left origin. Normalize to top-row-first RGBA.
+    bool top_origin = (descriptor & 0x20) != 0;
+
     // Convert to RGBA if needed (BGR -> RGB)
     uint8_t* rgba = new uint8_t[total_pixels * 4];
 
-    for (int i = 0; i < total_pixels; ++i) {
-        const uint8_t* src = data.data() + i * channels;
-        uint8_t* dst = rgba + i * 4;
+    for (uint32_t y = 0; y < height; ++y) {
+        // Source row in file order; flip when the file stores bottom-up
+        uint32_t src_y = top_origin ? y : (height - 1 - y);
+        const uint8_t* src_row = data.data() + static_cast<size_t>(src_y) * width * channels;
+        uint8_t* dst_row = rgba + static_cast<size_t>(y) * width * 4;
+        for (uint32_t x = 0; x < width; ++x) {
+            const uint8_t* src = src_row + x * channels;
+            uint8_t* dst = dst_row + x * 4;
 
-        dst[0] = src[2];  // R
-        dst[1] = src[1];  // G
-        dst[2] = src[0];  // B
-        dst[3] = (channels == 4) ? src[3] : 255;  // A
+            dst[0] = src[2];  // R
+            dst[1] = src[1];  // G
+            dst[2] = src[0];  // B
+            dst[3] = (channels == 4) ? src[3] : 255;  // A
+        }
     }
 
     out_desc.data = rgba;
-    out_desc.width = static_cast<uint32_t>(width);
-    out_desc.height = static_cast<uint32_t>(height);
+    out_desc.width = width;
+    out_desc.height = height;
     out_desc.format = TextureFormat::RGBA8_UNORM;
     out_desc.mip_levels = 1;
     out_desc.name = filepath;

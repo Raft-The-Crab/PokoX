@@ -738,10 +738,12 @@ GltfLoaderError GltfLoader::load(const char* filepath, GltfAsset& out_asset) {
                     } else {
                         dst[3] = 0.0f; dst[4] = 0.0f; dst[5] = 1.0f;
                     }
-                    // Texcoord (flip V for OpenGL)
+                    // Texcoord: glTF UV origin is top-left and texture uploads
+                    // place the top image row at v=0, so V passes through
+                    // unmodified (flipping would mirror the texture).
                     if (has_uvs && (v * 2 + 1) < uvs.size()) {
                         dst[6] = uvs[v * 2 + 0];
-                        dst[7] = 1.0f - uvs[v * 2 + 1];
+                        dst[7] = uvs[v * 2 + 1];
                     } else {
                         dst[6] = 0.0f; dst[7] = 0.0f;
                     }
@@ -901,6 +903,30 @@ GltfLoaderError GltfLoader::load(const char* filepath, GltfAsset& out_asset) {
                             channel.values = std::move(sampler_data[si].values);
                             channel.interp = sampler_data[si].interp;
                             channel.value_stride = sampler_data[si].stride;
+
+                            // CUBIC_SPLINE stores in-tangent, value, out-tangent
+                            // per key (3x elements). The sampler only supports
+                            // linear/step, so compact to the value keys and
+                            // degrade to linear instead of indexing tangents.
+                            if (channel.interp == GltfAnimInterp::CubicSpline &&
+                                !channel.times.empty() && channel.value_stride > 0) {
+                                uint32_t keys = static_cast<uint32_t>(channel.times.size());
+                                uint32_t cubic_stride = channel.value_stride;  // 3 * components
+                                uint32_t comps = cubic_stride / 3;
+                                if (comps > 0 && cubic_stride == comps * 3 &&
+                                    channel.values.size() >= static_cast<size_t>(keys) * cubic_stride) {
+                                    std::vector<float> compact;
+                                    compact.reserve(static_cast<size_t>(keys) * comps);
+                                    for (uint32_t k = 0; k < keys; ++k) {
+                                        const float* key = channel.values.data() +
+                                            static_cast<size_t>(k) * cubic_stride + comps;
+                                        compact.insert(compact.end(), key, key + comps);
+                                    }
+                                    channel.values = std::move(compact);
+                                    channel.value_stride = comps;
+                                    channel.interp = GltfAnimInterp::Linear;
+                                }
+                            }
                         }
                     }
                     if (!channel.times.empty() && channel.node >= 0) {
