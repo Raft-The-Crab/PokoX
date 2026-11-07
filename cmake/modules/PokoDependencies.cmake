@@ -26,32 +26,12 @@ include(FetchContent)
 # -----------------------------------------------------------------------------
 # Dependency pins
 # -----------------------------------------------------------------------------
-set(POKO_DILIGENT_VERSION "v2.5.6")
-set(POKO_DILIGENT_URL
-    "https://codeload.github.com/DiligentGraphics/DiligentCore/tar.gz/refs/tags/${POKO_DILIGENT_VERSION}"
-    CACHE STRING "Diligent Core release archive URL")
-set(POKO_DILIGENT_URL_HASH
-    "SHA256=abc190c05ee7e5ef2bba52fcbc5fdfe2256cce3435efba9cfe263a386653f671"
-    CACHE STRING "Expected hash of POKO_DILIGENT_URL; empty disables verification")
-# The commit that tag v2.5.6 resolved to when this pin was reviewed. GitHub
-# archives for a tag are regenerated upstream, not stored, so the hash is the
-# authoritative pin and this SHA is the human-readable traceability record.
-set(POKO_DILIGENT_REVIEWED_COMMIT "b036337d68be2353c9950a85929acf796b9a6d50")
-
-# --- xxHash (a Diligent Core third-party dependency) --------------------------
-# Diligent's ThirdParty/xxHash is a git submodule, so it is empty in the release
-# archive, while ThirdParty/CMakeLists.txt adds xxHash/cmake_unofficial
-# unconditionally. Supplying the exact upstream (Diligent fork) commit and
-# pre-creating `xxHash::xxhash` makes Diligent skip its own submodule block.
-# The hash below was computed from a fresh download of this archive, not copied
-# from documentation.
-set(POKO_XXHASH_COMMIT "a57f6cce2698049863af8c25787084ae0489d849")
-set(POKO_XXHASH_URL
-    "https://codeload.github.com/DiligentGraphics/xxHash/tar.gz/${POKO_XXHASH_COMMIT}"
-    CACHE STRING "xxHash archive URL required by Diligent Core")
-set(POKO_XXHASH_URL_HASH
-    "SHA256=50a63437bbc5dc34c62d00dfce92324d8f17e5d116a659e074a3e0a1d02b6f16"
-    CACHE STRING "Expected hash of POKO_XXHASH_URL; empty disables verification")
+set(POKO_DILIGENT_TAG "API256018")
+set(POKO_DILIGENT_COMMIT "b75f924bde69083fe84a38169d8ed985ebd7c6c8")
+set(POKO_DILIGENT_REPOSITORY "https://github.com/DiligentGraphics/DiligentCore.git")
+# The commit that tag API256018 resolved to when this pin was reviewed.
+# This provides traceability even if the tag moves.
+set(POKO_DILIGENT_REVIEWED_COMMIT "b75f924bde69083fe84a38169d8ed985ebd7c6c8")
 
 # Windows desktop consumes the MSYS2 package so that exactly one SDL2 (and one
 # SDL2 runtime DLL) exists in the process. Android will build SDL2 from a pinned
@@ -59,6 +39,11 @@ set(POKO_XXHASH_URL_HASH
 option(POKO_USE_SYSTEM_SDL2
     "Use the SDL2 package supplied by the toolchain (MSYS2 UCRT64) instead of building SDL2 from source"
     ON)
+
+# Option to enable Vulkan backend in Diligent Core
+option(POKO_WITH_VULKAN
+    "Enable Vulkan backend in Diligent Core (requires git clone with submodules)"
+    OFF)
 
 # -----------------------------------------------------------------------------
 # poko_record_pin(<name> <revision>)
@@ -127,52 +112,19 @@ endfunction()
 # -----------------------------------------------------------------------------
 # poko_fetch_diligent_xxhash()
 #
-# Must run before Diligent is added. xxHash is a C-only project, so the knobs
-# below are set as normal variables (not cache entries) with the same values
-# Diligent itself would use: static library, no xxhsum executable, no install
-# rules leaking into the PokoX install tree.
+# Note: When using git clone with submodules, Diligent Core will handle its
+# own xxHash submodule. This function is kept for compatibility but does nothing
+# when using git clone.
 # -----------------------------------------------------------------------------
 function(poko_fetch_diligent_xxhash)
-    if(TARGET xxHash::xxhash)
-        return()
-    endif()
-
-    set(BUILD_SHARED_LIBS      OFF)
-    set(XXHASH_BUILD_XXHSUM    OFF)
-    set(XXHASH_BUNDLED_MODE    ON)
-
-    FetchContent_Declare(xxHash
-        URL                   "${POKO_XXHASH_URL}"
-        URL_HASH              "${POKO_XXHASH_URL_HASH}"
-        SOURCE_SUBDIR         cmake_unofficial
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
-
-    message(STATUS "poko: fetching xxHash ${POKO_XXHASH_COMMIT} (required by Diligent Core)")
-    FetchContent_MakeAvailable(xxHash)
-
-    if(NOT TARGET xxHash::xxhash)
-        message(FATAL_ERROR
-            "xxHash was fetched, but no xxHash::xxhash target was created; "
-            "Diligent Core cannot be built without it.")
-    endif()
-
-    # A shared xxhash would need a runtime DLL next to every executable; the
-    # static build is what Diligent expects, so refuse to continue otherwise.
-    get_target_property(_poko_xxhash_type xxHash::xxhash TYPE)
-    if(NOT _poko_xxhash_type STREQUAL "STATIC_LIBRARY")
-        message(FATAL_ERROR
-            "xxHash was built as '${_poko_xxhash_type}', expected STATIC_LIBRARY.")
-    endif()
-
-    poko_record_pin(xxHash "${POKO_XXHASH_COMMIT} ${POKO_XXHASH_URL_HASH}")
+    # No-op when using git clone - Diligent handles submodules
 endfunction()
 
 # -----------------------------------------------------------------------------
 # poko_fetch_diligent_core()
 #
-# Builds only the pieces M0 needs: the core library and the OpenGL backend.
-# Direct3D, Vulkan, WebGPU, Metal and the archiver are disabled to keep the
-# dependency build small and to keep unsupported backends out of the binary.
+# Builds Diligent Core with git clone and submodules to enable Vulkan support.
+# Builds the core library and selected backends.
 #
 # Offline / mirror builds: set -DFETCHCONTENT_SOURCE_DIR_DILIGENTCORE=<path> to
 # use an existing checkout instead of downloading.
@@ -201,7 +153,11 @@ function(poko_fetch_diligent_core)
     # MakeAvailable means its option() calls see the cached value.
     set(DILIGENT_NO_DIRECT3D11 ON CACHE BOOL "" FORCE)
     set(DILIGENT_NO_DIRECT3D12 ON CACHE BOOL "" FORCE)
-    set(DILIGENT_NO_VULKAN    ON CACHE BOOL "" FORCE)
+    if(POKO_WITH_VULKAN)
+        set(DILIGENT_NO_VULKAN OFF CACHE BOOL "" FORCE)
+    else()
+        set(DILIGENT_NO_VULKAN ON CACHE BOOL "" FORCE)
+    endif()
     set(DILIGENT_NO_WEBGPU    ON CACHE BOOL "" FORCE)
     set(DILIGENT_NO_METAL     ON CACHE BOOL "" FORCE)
     set(DILIGENT_NO_ARCHIVER  ON CACHE BOOL "" FORCE)
@@ -210,32 +166,62 @@ function(poko_fetch_diligent_core)
     set(DILIGENT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(DILIGENT_INSTALL_CORE OFF CACHE BOOL "" FORCE)
     set(DILIGENT_INSTALL_PDB  OFF CACHE BOOL "" FORCE)
+    set(DILIGENT_BUILD_FX    OFF CACHE BOOL "" FORCE)
+    set(DILIGENT_BUILD_SR    OFF CACHE BOOL "" FORCE)
+    set(DILIGENT_BUILD_ARCHIVES_ONLY ON CACHE BOOL "" FORCE)
+    set(DILIGENT_BUILD_FSR   OFF CACHE BOOL "" FORCE)
+    set(DILIGENT_NO_FSR     ON CACHE BOOL "" FORCE)
+
+    # Disable glslang build if not using Vulkan (saves build time)
+    if(NOT POKO_WITH_VULKAN)
+        set(DILIGENT_NO_GLSLANG ON CACHE BOOL "" FORCE)
+    endif()
 
     FetchContent_Declare(DiligentCore
-        URL                   "${POKO_DILIGENT_URL}"
-        URL_HASH              "${POKO_DILIGENT_URL_HASH}"
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+        GIT_REPOSITORY    "${POKO_DILIGENT_REPOSITORY}"
+        GIT_TAG           "${POKO_DILIGENT_TAG}"
+        GIT_SHALLOW       TRUE
+        GIT_PROGRESS      TRUE)
 
-    message(STATUS "poko: fetching Diligent Core ${POKO_DILIGENT_VERSION} (pin ${POKO_DILIGENT_URL_HASH}; upstream commit ${POKO_DILIGENT_REVIEWED_COMMIT})")
-    # Saturates the `ThirdParty/xxHash` submodule that the release archive
-    # leaves empty. Must precede MakeAvailable(DiligentCore).
-    poko_fetch_diligent_xxhash()
+    message(STATUS "poko: fetching Diligent Core ${POKO_DILIGENT_TAG} (commit ${POKO_DILIGENT_REVIEWED_COMMIT})")
     FetchContent_MakeAvailable(DiligentCore)
 
-    # Diligent always defines a shared OpenGL engine target. Under a Makefile
-    # generator it links against `export.map` relative to its own binary dir; with
+    # Diligent always defines shared engine targets. Under a Makefile
+    # generator they link against `export.map` relative to their own binary dir; with
     # Ninja the link command runs from the build root, so that path does not
     # resolve and the DLL fails to link. PokoX links the static engine, so the
-    # DLL is removed from the default build instead of being "fixed" by patching
+    # DLLs are removed from the default build instead of being "fixed" by patching
     # third-party code.
     if(TARGET Diligent-GraphicsEngineOpenGL-shared)
         set_target_properties(Diligent-GraphicsEngineOpenGL-shared
-            PROPERTIES EXCLUDE_FROM_ALL TRUE)
+            PROPERTIES EXCLUDE_FROM_ALL TRUE EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+    endif()
+    if(TARGET Diligent-GraphicsEngineVk-shared)
+        set_target_properties(Diligent-GraphicsEngineVk-shared
+            PROPERTIES EXCLUDE_FROM_ALL TRUE EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+    endif()
+    # Exclude SuperResolution DLL targets (both debug and release)
+    if(TARGET Diligent-SuperResolution-shared)
+        set_target_properties(Diligent-SuperResolution-shared
+            PROPERTIES EXCLUDE_FROM_ALL TRUE EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+    endif()
+    if(TARGET SuperResolution_64)
+        set_target_properties(SuperResolution_64
+            PROPERTIES EXCLUDE_FROM_ALL TRUE EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+    endif()
+    if(TARGET SuperResolution_64d)
+        set_target_properties(SuperResolution_64d
+            PROPERTIES EXCLUDE_FROM_ALL TRUE EXCLUDE_FROM_DEFAULT_BUILD TRUE)
     endif()
 
-    poko_record_pin(DiligentCore "${POKO_DILIGENT_VERSION} ${POKO_DILIGENT_URL_HASH}")
+    if(POKO_WITH_VULKAN)
+        set(_poko_diligent_backends "OpenGL and Vulkan")
+    else()
+        set(_poko_diligent_backends "OpenGL only")
+    endif()
+    poko_record_pin(DiligentCore "${POKO_DILIGENT_TAG} ${POKO_DILIGENT_COMMIT}")
     set(POKO_DILIGENT_SUMMARY
-        "FetchContent ${POKO_DILIGENT_VERSION} (content-pinned), OpenGL backend only"
+        "FetchContent ${POKO_DILIGENT_TAG} (git-pinned), ${_poko_diligent_backends}"
         PARENT_SCOPE)
 endfunction()
 

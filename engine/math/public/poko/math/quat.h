@@ -6,6 +6,7 @@
 #ifndef POKO_MATH_QUAT_H
 #define POKO_MATH_QUAT_H
 
+#include "constants.h"
 #include "vec3.h"
 #include "mat4.h"
 #include <cmath>
@@ -57,7 +58,7 @@ struct Quat {
     // Normalize
     Quat normalized() const {
         float len = length();
-        if (len > 0.000001f) {
+        if (len > EPSILON) {
             return Quat(x / len, y / len, z / len, w / len);
         }
         return Quat(0.0f, 0.0f, 0.0f, 1.0f);

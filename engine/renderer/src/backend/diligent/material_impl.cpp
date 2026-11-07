@@ -14,6 +14,9 @@
 namespace poko::render {
 
 Material::Impl::~Impl() {
+    for (auto* v : sb_views) {
+        if (v) v->Release();
+    }
     if (srb) {
         srb->Release();
         srb = nullptr;
@@ -121,6 +124,36 @@ bool Material::Impl::initialize(Device* device, const MaterialDesc& desc) {
         cb_shader_variables[i] = binding.shader_variable;
     }
 
+    if (desc.structured_buffer_count > 16) {
+        last_error = "Too many structured buffers (> 16)";
+        return false;
+    }
+    if (desc.structured_buffer_count > 0 && !desc.structured_buffer_bindings) {
+        last_error = "Invalid structured buffer bindings array";
+        return false;
+    }
+    structured_buffers.resize(desc.structured_buffer_count);
+    sb_shader_variables.resize(desc.structured_buffer_count);
+    sb_views.resize(desc.structured_buffer_count, nullptr);
+    for (uint32_t i = 0; i < desc.structured_buffer_count; ++i) {
+        const auto& binding = desc.structured_buffer_bindings[i];
+        if (!binding.buffer || !binding.buffer->is_valid()) {
+            last_error = "Invalid structured buffer at binding index";
+            return false;
+        }
+        if (!binding.shader_variable) {
+            last_error = "Missing shader variable name at structured buffer binding index";
+            return false;
+        }
+        auto sb_device = binding.buffer->get_device();
+        if (sb_device && sb_device != device) {
+            last_error = "Structured buffer created from different device";
+            return false;
+        }
+        structured_buffers[i] = binding.buffer;
+        sb_shader_variables[i] = binding.shader_variable;
+    }
+
     // Get pipeline implementation
     auto pipeline_impl = desc.pipeline->impl_;
     if (!pipeline_impl || !pipeline_impl->pipeline) {
@@ -190,6 +223,28 @@ bool Material::Impl::initialize(Device* device, const MaterialDesc& desc) {
             cb_var->Set(cb_impl->buffer);
         }
         // Note: Missing shader variable is not an error - may be unused in shader
+    }
+
+    // M13: Bind structured buffers (SSBO) via buffer views
+    for (uint32_t i = 0; i < desc.structured_buffer_count; ++i) {
+        auto sb_impl = structured_buffers[i]->impl_;
+        if (!sb_impl || !sb_impl->buffer) {
+            last_error = "Invalid structured buffer implementation at binding index";
+            return false;
+        }
+        if (!sb_views[i]) {
+            Diligent::BufferViewDesc bv_desc;
+            bv_desc.ViewType = Diligent::BUFFER_VIEW_SHADER_RESOURCE;
+            sb_impl->buffer->CreateView(bv_desc, &sb_views[i]);
+            if (!sb_views[i]) {
+                last_error = "Failed to create structured buffer view";
+                return false;
+            }
+        }
+        auto* sb_var = srb->GetVariableByName(Diligent::SHADER_TYPE_VERTEX, sb_shader_variables[i].c_str());
+        if (sb_var) {
+            sb_var->Set(sb_views[i]);
+        }
     }
 
     last_error.clear();

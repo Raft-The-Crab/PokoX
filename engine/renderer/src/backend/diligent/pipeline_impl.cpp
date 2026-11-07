@@ -241,8 +241,13 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
 
             Diligent::LayoutElement element;
 
-            // M9: Use input_slot from attribute (default 0 for vertex data)
-            element.InputIndex = attr.input_slot;
+            // M9/M13: BufferSlot selects the vertex stream; InputIndex is the
+            // shader attribute location. They are distinct concepts — several
+            // attributes may share one buffer slot while needing unique
+            // locations. An explicit input_index overrides the ordinal default.
+            element.InputIndex = (attr.input_index == VertexAttribute::kAutoAttributeIndex)
+                                     ? i
+                                     : attr.input_index;
 
             // Map semantic to slot (M3 simplified)
             const char* semantic_name = "ATTRIBUTE";
@@ -258,6 +263,12 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
                     break;
                 case VertexSemantic::Color:
                     semantic_name = "COLOR";
+                    break;
+                case VertexSemantic::Joints:
+                    semantic_name = "JOINTS";
+                    break;
+                case VertexSemantic::Weights:
+                    semantic_name = "WEIGHTS";
                     break;
                 default:
                     semantic_name = "ATTRIBUTE";
@@ -375,6 +386,28 @@ bool PipelineState::Impl::initialize(Device* device, const PipelineDesc& desc) {
             Diligent::SHADER_RESOURCE_TYPE res_type = Diligent::SHADER_RESOURCE_TYPE_TEXTURE_SRV;
             Diligent::SHADER_RESOURCE_VARIABLE_TYPE var_type = Diligent::SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE;
             Diligent::PIPELINE_RESOURCE_FLAGS flags = Diligent::PIPELINE_RESOURCE_FLAG_NONE;
+
+            // M13: Map Poko resource types onto Diligent resource types so
+            // constant buffers and storage buffers can be declared in the
+            // resource signature (required for skinned-mesh bone palettes).
+            switch (res.type) {
+                case ShaderResourceType::Texture:
+                    res_type = Diligent::SHADER_RESOURCE_TYPE_TEXTURE_SRV;
+                    break;
+                case ShaderResourceType::Sampler:
+                    res_type = Diligent::SHADER_RESOURCE_TYPE_SAMPLER;
+                    break;
+                case ShaderResourceType::ConstantBuffer:
+                    res_type = Diligent::SHADER_RESOURCE_TYPE_CONSTANT_BUFFER;
+                    break;
+                case ShaderResourceType::StructuredBuffer:
+                    res_type = Diligent::SHADER_RESOURCE_TYPE_BUFFER_SRV;
+                    break;
+                case ShaderResourceType::TextureSampler:
+                default:
+                    res_type = Diligent::SHADER_RESOURCE_TYPE_TEXTURE_SRV;
+                    break;
+            }
 
             // For combined texture-sampler in OpenGL
             if (res.type == ShaderResourceType::TextureSampler) {

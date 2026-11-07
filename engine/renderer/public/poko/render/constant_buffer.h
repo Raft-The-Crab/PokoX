@@ -47,6 +47,7 @@ struct ConstantBufferDesc {
     const void* data = nullptr;  // Initial data (can be null for dynamic buffers)
     uint32_t size = 0;           // Buffer size in bytes (must be multiple of 16 for std140)
     const char* name = "ConstantBuffer";
+    bool allow_shader_resource_view = false;  // M13: also allow SRV/SSBO binding (raw buffer mode)
 };
 
 /**

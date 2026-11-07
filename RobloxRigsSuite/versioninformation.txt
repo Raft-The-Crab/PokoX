@@ -1,0 +1,5 @@
+legacy version = 2026.1
+
+RRS Version = 1.2.1
+Lightning Rigs Version = 1.2.1
+Tools Version = 1.2.1

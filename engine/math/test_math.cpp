@@ -318,6 +318,39 @@ int main() {
         std::printf("  PASS\n");
     }
 
+    // Sphere tests
+    {
+        std::printf("Sphere tests...\n");
+        poko::math::Sphere sphere(poko::math::Vec3::zero(), 1.0f);
+        assert(sphere.contains(poko::math::Vec3::zero()));
+        assert(!sphere.contains(poko::math::Vec3(2.0f, 0.0f, 0.0f)));
+        
+        poko::math::Sphere other(poko::math::Vec3(1.5f, 0.0f, 0.0f), 1.0f);
+        assert(sphere.intersects(other));
+        
+        std::printf("  PASS\n");
+    }
+
+    // Capsule tests
+    {
+        std::printf("Capsule tests...\n");
+        poko::math::Capsule capsule(poko::math::Vec3::zero(), poko::math::Vec3::up(), 0.5f);
+        assert(capsule.contains(poko::math::Vec3::zero()));
+        assert(capsule.contains(poko::math::Vec3(0.0f, 0.5f, 0.0f)));
+        
+        std::printf("  PASS\n");
+    }
+
+    // OBB tests
+    {
+        std::printf("OBB tests...\n");
+        poko::math::OBB obb;
+        assert(obb.contains(poko::math::Vec3::zero()));
+        assert(!obb.contains(poko::math::Vec3(2.0f, 0.0f, 0.0f)));
+        
+        std::printf("  PASS\n");
+    }
+
     std::printf("\nAll math library tests passed.\n");
     return 0;
 }

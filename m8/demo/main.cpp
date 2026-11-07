@@ -94,6 +94,10 @@ int main(int argc, char** argv) {
     tex_desc.width = tex_width;
     tex_desc.height = tex_height;
     tex_desc.format = poko::render::TextureFormat::RGBA8_UNORM;
+    tex_desc.usage = static_cast<poko::render::TextureUsage>(
+        static_cast<uint32_t>(poko::render::TextureUsage::ShaderResource) |
+        static_cast<uint32_t>(poko::render::TextureUsage::RenderTarget)
+    );
     tex_desc.data = tex_data.data();
     tex_desc.data_size = tex_data.size();
     tex_desc.name = "OffscreenTexture";
@@ -121,6 +125,7 @@ int main(int argc, char** argv) {
     auto fb_result = framebuffer.initialize(device, fb_desc);
     if (fb_result != poko::render::FramebufferErrorCode::Success) {
         std::fprintf(stderr, "Failed to create framebuffer: %d\n", static_cast<int>(fb_result));
+        std::fprintf(stderr, "Error: %s\n", framebuffer.get_last_error());
         engine.shutdown();
         return 1;
     }

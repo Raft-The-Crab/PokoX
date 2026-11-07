@@ -22,12 +22,21 @@ struct Vec2 {
     Vec2 operator+(const Vec2& other) const { return Vec2(x + other.x, y + other.y); }
     Vec2 operator-(const Vec2& other) const { return Vec2(x - other.x, y - other.y); }
     Vec2 operator*(float scalar) const { return Vec2(x * scalar, y * scalar); }
-    Vec2 operator/(float scalar) const { return Vec2(x / scalar, y / scalar); }
+    Vec2 operator/(float scalar) const {
+        if (approximately_zero(scalar)) return Vec2(0.0f, 0.0f);
+        return Vec2(x / scalar, y / scalar);
+    }
 
     Vec2& operator+=(const Vec2& other) { x += other.x; y += other.y; return *this; }
     Vec2& operator-=(const Vec2& other) { x -= other.x; y -= other.y; return *this; }
     Vec2& operator*=(float scalar) { x *= scalar; y *= scalar; return *this; }
-    Vec2& operator/=(float scalar) { x /= scalar; y /= scalar; return *this; }
+    Vec2& operator/=(float scalar) {
+        if (!approximately_zero(scalar)) {
+            x /= scalar;
+            y /= scalar;
+        }
+        return *this;
+    }
 
     // Dot product
     float dot(const Vec2& other) const { return x * other.x + y * other.y; }

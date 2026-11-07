@@ -49,16 +49,19 @@ option(POKO_BUILD_MOD       "Build the Poko Mod host"               ON)
 option(POKO_BUILD_AUTHORITY "Build the headless game authority"     ON)
 
 option(POKO_BUILD_M0        "Build the M0 technical-feasibility applications (reference, disabled by default)" OFF)
-option(POKO_BUILD_M1        "Build the M1 engine foundation demo" OFF)
-option(POKO_BUILD_M2        "Build the M2 minimal scene rendering demo" OFF)
-option(POKO_BUILD_M3        "Build the M3 vertex buffer and mesh rendering demo" OFF)
-option(POKO_BUILD_M4        "Build the M4 index buffer and indexed rendering demo" OFF)
-option(POKO_BUILD_M5        "Build the M5 texture creation demo" OFF)
-option(POKO_BUILD_M6        "Build the M6 material and SRB demo" OFF)
-option(POKO_BUILD_M7        "Build the M7 constant buffer demo" OFF)
+option(POKO_BUILD_M1        "Build the M1 engine foundation demo" ON)
+option(POKO_BUILD_M2        "Build the M2 minimal scene rendering demo" ON)
+option(POKO_BUILD_M3        "Build the M3 vertex buffer and mesh rendering demo" ON)
+option(POKO_BUILD_M4        "Build the M4 index buffer and indexed rendering demo" ON)
+option(POKO_BUILD_M5        "Build the M5 texture creation demo" ON)
+option(POKO_BUILD_M6        "Build the M6 material and SRB demo" ON)
+option(POKO_BUILD_M7        "Build the M7 constant buffer demo" ON)
 option(POKO_BUILD_M8        "Build the M8 render passes and framebuffers demo" ON)
 option(POKO_BUILD_M9        "Build the M9 advanced drawing and performance benchmarks demo" ON)
+option(POKO_BUILD_M10       "Build the M10 skinned GLB character demo" ON)
+option(POKO_BUILD_INPUT     "Build the input module tests and demo" ON)
 option(POKO_WITH_DILIGENT   "Build the Diligent Core graphics backend"        ON)
+option(POKO_WITH_VULKAN     "Enable Vulkan backend in Diligent Core"         ON)
 
 include(CTest)  # defines BUILD_TESTING, registers CTest for `ctest`
 
@@ -171,6 +174,13 @@ endif()
 # -----------------------------------------------------------------------------
 if(POKO_BUILD_M9)
     add_subdirectory(m9)
+endif()
+
+# -----------------------------------------------------------------------------
+# M10 skinned GLB character
+# -----------------------------------------------------------------------------
+if(POKO_BUILD_M10)
+    add_subdirectory(m10)
 endif()
 
 # -----------------------------------------------------------------------------

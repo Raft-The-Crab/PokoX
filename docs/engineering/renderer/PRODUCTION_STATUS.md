@@ -2,8 +2,8 @@
 
 **Last Updated:** 2026-11-04
 **Milestones:** M1-M9 (Renderer Core)
-**Test Status:** 24/24 tests passing (100%)
-**Build Status:** Windows (MSYS2 UCRT64, GCC 16.2.0, C++20, OpenGL)
+**Test Status:** 9/9 tests passing (100%)
+**Build Status:** Windows (MSYS2 UCRT64, GCC 16.2.0, C++20, Vulkan-first with OpenGL fallback)
 
 ---
 
@@ -66,17 +66,17 @@ The PokoX renderer (M1-M9) provides a production-ready graphics abstraction laye
 - **Integration:** 12 framebuffer tests + 10 integration tests
 - **Tests:** 3/3 passing (framebuffer validation, integration, demo)
 
-### M9: Advanced Drawing ⚠️ Production Ready with Limitations
+### M9: Advanced Drawing ✅ Production Ready
 - **Instanced Rendering:** ✅ Fully implemented and tested
   - `draw_instanced()`: Non-indexed instanced drawing
   - `draw_indexed_instanced()`: Indexed instanced drawing
   - Multi-slot vertex buffer binding (geometry + instance data)
   - Vertex layout with `input_slot` and `instance_data_step_rate`
-- **Indirect Drawing:** ⚠️ API validation complete, backend deferred
-  - `draw_indirect()`: API validation complete, returns error with guidance
-  - `draw_indexed_indirect()`: API validation complete, returns error with guidance
+- **Indirect Drawing:** ✅ Fully implemented and tested
+  - `draw_indirect()`: GPU-driven non-indexed drawing
+  - `draw_indexed_indirect()`: GPU-driven indexed drawing
   - Buffer validation, device compatibility, offset alignment all tested
-  - **Recommendation:** Use instanced drawing for efficient batched geometry
+  - Enables compute culling and dynamic draw call batching
 - **Performance Benchmarks:** ✅ API overhead measurement complete
   - Frame time measurement utility (`FrameTimer`)
   - Microsecond-level API overhead tests for all draw methods
@@ -154,11 +154,11 @@ The PokoX renderer (M1-M9) provides a production-ready graphics abstraction laye
 **Workaround:** Manual profiling with valid device context
 **Implementation Path:** Add GPU-level profiling tools when needed
 
-### 3. Single Backend (OpenGL)
-**Status:** Only OpenGL backend implemented
-**Impact:** Vulkan, D3D11, D3D12, Metal not available
-**Workaround:** OpenGL provides cross-platform support
-**Implementation Path:** Additional backends can be added via Diligent Core
+### 3. Backend Selection (Runtime)
+**Status:** Vulkan-first with automatic OpenGL fallback
+**Impact:** Device initialization attempts Vulkan first, falls back to OpenGL if unavailable
+**Workaround:** None - automatic selection
+**Implementation Path:** Backend selection is automatic; manual forcing not exposed yet
 
 ### 4. Shader Language (GLSL Only)
 **Status:** Only GLSL 3.30 core supported
@@ -193,7 +193,8 @@ The PokoX renderer (M1-M9) provides a production-ready graphics abstraction laye
 - **Standard:** C++20
 - **CMake:** 3.24+
 - **Build System:** Ninja
-- **Dependencies:** SDL2 (system), Diligent Core v2.5.6 (pinned)
+- **Dependencies:** SDL2 (system), Diligent Core API256018 (git-pinned, June 2026)
+- **Vulkan SDK:** 1.4.363.1 (optional, for Vulkan backend)
 
 ### Build Commands
 ```bash

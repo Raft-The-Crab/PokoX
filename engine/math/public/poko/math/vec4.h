@@ -24,12 +24,23 @@ struct Vec4 {
     Vec4 operator+(const Vec4& other) const { return Vec4(x + other.x, y + other.y, z + other.z, w + other.w); }
     Vec4 operator-(const Vec4& other) const { return Vec4(x - other.x, y - other.y, z - other.z, w - other.w); }
     Vec4 operator*(float scalar) const { return Vec4(x * scalar, y * scalar, z * scalar, w * scalar); }
-    Vec4 operator/(float scalar) const { return Vec4(x / scalar, y / scalar, z / scalar, w / scalar); }
+    Vec4 operator/(float scalar) const {
+        if (approximately_zero(scalar)) return Vec4(0.0f, 0.0f, 0.0f, 0.0f);
+        return Vec4(x / scalar, y / scalar, z / scalar, w / scalar);
+    }
 
     Vec4& operator+=(const Vec4& other) { x += other.x; y += other.y; z += other.z; w += other.w; return *this; }
     Vec4& operator-=(const Vec4& other) { x -= other.x; y -= other.y; z -= other.z; w -= other.w; return *this; }
     Vec4& operator*=(float scalar) { x *= scalar; y *= scalar; z *= scalar; w *= scalar; return *this; }
-    Vec4& operator/=(float scalar) { x /= scalar; y /= scalar; z /= scalar; w /= scalar; return *this; }
+    Vec4& operator/=(float scalar) {
+        if (!approximately_zero(scalar)) {
+            x /= scalar;
+            y /= scalar;
+            z /= scalar;
+            w /= scalar;
+        }
+        return *this;
+    }
 
     // Dot product
     float dot(const Vec4& other) const { return x * other.x + y * other.y + z * other.z + w * other.w; }

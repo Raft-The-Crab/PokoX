@@ -16,6 +16,10 @@
 #include "SwapChain.h"
 #include "EngineFactoryOpenGL.h"
 
+#ifdef POKO_WITH_VULKAN
+#include "EngineFactoryVk.h"
+#endif
+
 #include <memory>
 
 namespace poko::render {

@@ -143,18 +143,22 @@ bool Framebuffer::Impl::initialize(Device* device, const FramebufferDesc& desc) 
     for (uint32_t i = 0; i < desc.color_attachment_count; ++i) {
         auto texture_impl = color_attachments[i]->impl_;
         color_rtvs[i] = texture_impl->texture->GetDefaultView(Diligent::TEXTURE_VIEW_RENDER_TARGET);
-        if (color_rtvs[i]) {
-            color_rtvs[i]->AddRef();
+        if (!color_rtvs[i]) {
+            last_error = "Failed to create render target view for color attachment";
+            return false;
         }
+        color_rtvs[i]->AddRef();
     }
 
     // Create depth stencil view if present
     if (desc.has_depth_stencil) {
         auto texture_impl = depth_stencil_attachment->impl_;
         depth_dsv = texture_impl->texture->GetDefaultView(Diligent::TEXTURE_VIEW_DEPTH_STENCIL);
-        if (depth_dsv) {
-            depth_dsv->AddRef();
+        if (!depth_dsv) {
+            last_error = "Failed to create depth stencil view";
+            return false;
         }
+        depth_dsv->AddRef();
     }
 
     last_error.clear();

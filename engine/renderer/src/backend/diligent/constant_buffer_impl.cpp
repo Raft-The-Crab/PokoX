@@ -65,6 +65,11 @@ bool ConstantBuffer::Impl::initialize(Device* device, const ConstantBufferDesc& 
     bd.Name = desc.name ? desc.name : "Poko ConstantBuffer";
     bd.Size = desc.size;
     bd.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
+    if (desc.allow_shader_resource_view) {
+        // M13: raw-mode buffer so it can back a shader storage buffer view
+        bd.BindFlags |= Diligent::BIND_SHADER_RESOURCE;
+        bd.Mode = Diligent::BUFFER_MODE_RAW;
+    }
     bd.Usage = Diligent::USAGE_DYNAMIC;
     bd.CPUAccessFlags = Diligent::CPU_ACCESS_WRITE;
 

@@ -73,6 +73,8 @@ struct MaterialDesc {
     TextureBinding* texture_bindings = nullptr;  // Array of texture bindings
     uint32_t constant_buffer_count = 0;  // Number of constant buffers
     ConstantBufferBinding* constant_buffer_bindings = nullptr;  // Array of constant buffer bindings
+    uint32_t structured_buffer_count = 0;  // Number of structured buffers (SSBO)
+    ConstantBufferBinding* structured_buffer_bindings = nullptr;  // Array of structured buffer bindings
 };
 
 /**

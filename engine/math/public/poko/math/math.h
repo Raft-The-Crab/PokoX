@@ -19,5 +19,8 @@
 #include "plane.h"
 #include "ray.h"
 #include "frustum.h"
+#include "sphere.h"
+#include "capsule.h"
+#include "obb.h"
 
 #endif // POKO_MATH_MATH_H

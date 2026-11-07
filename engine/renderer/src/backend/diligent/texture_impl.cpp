@@ -121,7 +121,17 @@ bool Texture::Impl::initialize(Device* device, const TextureDesc& desc) {
     tex_desc.Height = desc.height;
     tex_desc.MipLevels = desc.mip_levels;
     tex_desc.Format = format;
+
+    // Set bind flags based on usage
     tex_desc.BindFlags = Diligent::BIND_SHADER_RESOURCE;
+    uint32_t usage_flags = static_cast<uint32_t>(desc.usage);
+    if (usage_flags & static_cast<uint32_t>(TextureUsage::RenderTarget)) {
+        tex_desc.BindFlags |= Diligent::BIND_RENDER_TARGET;
+    }
+    if (usage_flags & static_cast<uint32_t>(TextureUsage::DepthStencil)) {
+        tex_desc.BindFlags |= Diligent::BIND_DEPTH_STENCIL;
+    }
+
     tex_desc.Usage = Diligent::USAGE_IMMUTABLE;
 
     Diligent::TextureData tex_data;

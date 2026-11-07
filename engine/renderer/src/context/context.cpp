@@ -194,7 +194,10 @@ bool Context::set_render_target(SwapChain* swap_chain) {
         return false;
     }
 
-    impl_->context->SetRenderTargets(1, &rtv, nullptr,
+    Diligent::ITextureView* dsv = impl_->swap_chain
+                                     ? impl_->swap_chain->GetDepthBufferDSV()
+                                     : nullptr;
+    impl_->context->SetRenderTargets(1, &rtv, dsv,
         Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
     impl_->last_error.clear();
     return true;
@@ -445,11 +448,19 @@ bool Context::draw_indirect(VertexBuffer* indirect_buffer, uint32_t offset) {
         return false;
     }
 
-    // Indirect drawing backend implementation deferred
-    // Full GPU-driven draw calls require additional buffer binding logic
-    // API validation is complete and tested
-    impl_->last_error = "Indirect drawing backend implementation deferred (use instanced drawing for efficient batched geometry)";
-    return false;
+    // Set indirect buffer as vertex buffer (required by Diligent for indirect arguments)
+    impl_->context->SetVertexBuffers(0, 1, &buffer_impl->buffer, nullptr,
+        Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+        Diligent::SET_VERTEX_BUFFERS_FLAG_NONE);
+
+    // Create indirect draw arguments
+    Diligent::DrawIndirectAttribs draw_attribs;
+    draw_attribs.Flags = Diligent::DRAW_FLAG_NONE;
+    draw_attribs.DrawArgsOffset = offset;
+
+    impl_->context->DrawIndirect(draw_attribs);
+    impl_->last_error.clear();
+    return true;
 }
 
 bool Context::draw_indexed_indirect(VertexBuffer* indirect_buffer, uint32_t offset) {
@@ -483,11 +494,20 @@ bool Context::draw_indexed_indirect(VertexBuffer* indirect_buffer, uint32_t offs
         return false;
     }
 
-    // Indirect drawing backend implementation deferred
-    // Full GPU-driven draw calls require additional buffer binding logic
-    // API validation is complete and tested
-    impl_->last_error = "Indirect drawing backend implementation deferred (use instanced drawing for efficient batched geometry)";
-    return false;
+    // Set indirect buffer as vertex buffer (required by Diligent for indirect arguments)
+    impl_->context->SetVertexBuffers(0, 1, &buffer_impl->buffer, nullptr,
+        Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+        Diligent::SET_VERTEX_BUFFERS_FLAG_NONE);
+
+    // Create indexed indirect draw arguments
+    Diligent::DrawIndexedIndirectAttribs draw_attribs;
+    draw_attribs.IndexType = impl_->bound_index_format;
+    draw_attribs.Flags = Diligent::DRAW_FLAG_NONE;
+    draw_attribs.DrawArgsOffset = offset;
+
+    impl_->context->DrawIndexedIndirect(draw_attribs);
+    impl_->last_error.clear();
+    return true;
 }
 
 bool Context::set_texture(Texture* texture, uint32_t slot) {

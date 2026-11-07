@@ -30,13 +30,14 @@ MaterialErrorCode Material::initialize(Device* device, const MaterialDesc& desc)
     if (!desc.pipeline || !desc.pipeline->is_valid()) {
         return MaterialErrorCode::InvalidDevice;  // Pipeline required
     }
-    if (desc.texture_count == 0) {
+    if (desc.texture_count == 0 && desc.constant_buffer_count == 0 &&
+        desc.structured_buffer_count == 0) {
         return MaterialErrorCode::InvalidCount;
     }
-    if (!desc.texture_bindings) {
+    if (desc.texture_count > 0 && !desc.texture_bindings) {
         return MaterialErrorCode::InvalidTextures;
     }
-    
+
     // Validate each texture binding
     for (uint32_t i = 0; i < desc.texture_count; ++i) {
         if (!desc.texture_bindings[i].texture) {

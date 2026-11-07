@@ -77,7 +77,9 @@ enum class VertexSemantic : uint32_t {
     Position = 1,   // M3: Vertex position
     Normal = 2,
     TexCoord = 3,
-    Color = 4
+    Color = 4,
+    Joints = 5,     // M13: Skin joint indices (up to 4 influences)
+    Weights = 6     // M13: Skin joint weights (up to 4 influences)
 };
 
 /**
@@ -89,6 +91,12 @@ struct VertexAttribute {
     uint32_t offset = 0;  // Byte offset from vertex start
     uint32_t input_slot = 0;  // M9: Input slot (0 for vertex data, 1+ for instance data)
     uint32_t instance_data_step_rate = 0;  // M9: 0 = per-vertex, 1+ = per-N-instances
+    // M13: Shader attribute location index. When left at the default
+    // (kAutoAttributeIndex), the backend assigns the attribute's ordinal
+    // position in the layout, which keeps multiple attributes sourced from
+    // the same buffer slot addressable.
+    static constexpr uint32_t kAutoAttributeIndex = 0xFFFFFFFFu;
+    uint32_t input_index = kAutoAttributeIndex;
 };
 
 /**
